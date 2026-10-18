@@ -11,7 +11,7 @@
 | 研究問題一：噪聲生成電路化 | 以 Poseidon PRNG + lookup-table 逆變換取樣產生拉普拉斯噪聲 | Poseidon PRG + canonical 255-bit 分解 + `k=16` centered-binomial 取樣，進入 actual Halo2 circuit（4 維固定 profile） | 達成，但機制改為離散二項式 | 明述改道理由：有限域內可精確取樣、無超越函數、可做 exact accountant；拉普拉斯/指數機制列為未實作 |
 | 研究問題二：量化 scale 對 `(epsilon, delta)` 的靈敏度 | 分析 scale 變動是否造成隱私預算衰減 | 有 `scale=8/12/16` 的 accuracy／proving-time sweep、量化 rounding 導致 honest relation 0/9 成立、`4200 ppm` slack、field low-bit bias `5.9e-66`；**沒有** scale 對 epsilon 的系統曲線 | 部分達成 | 以「量化對可驗證性與正確性的影響」回答，並明列 scale→epsilon 曲線為未完成 |
 | 研究問題三：邊緣裝置（ARM）效能邊界 | 在 ARM 類邊緣裝置量測 proving time／RAM／proof size | 全部量測在 Intel x86（Windows）與 GitHub Ubuntu／Windows runner；有 prove/verify/RSS/proof size/payload，無 ARM | 部分達成 | 以 x86 CPU 數據代替，ARM 列為限制 |
-| 資料集 | MNIST（LeNet-5 CNN）、UCI Heart Disease（MLP） | UCI Adult 主線、11 個二元表格、Iris/Wine/Digits、Forest CoverType 581,012 筆、4 維合成資料；無 MNIST、無 Heart Disease | 改道 | 說明 CNN 在 ZK 內成本與審查人要求更多資料集；Heart Disease 可用既有 pipeline 低成本補跑（見第六節） |
+| 資料集 | MNIST（LeNet-5 CNN）、UCI Heart Disease（MLP） | UCI Adult 主線、12 個二元表格（含 2026-10-18 以既有 pipeline 補跑的 UCI Heart Disease Cleveland 303 筆，線性模型，3 seeds × FL/DP；保留率 0.830882，未達 90% 門檻，未調參）、Iris/Wine/Digits、Forest CoverType 581,012 筆、4 維合成資料；無 MNIST | 部分改道（Heart Disease 已補跑，但模型為線性而非 MLP） | 說明 CNN 在 ZK 內成本與審查人要求更多資料集；Heart Disease 結果如實列入表 3 與正文（`experiments/binary_dataset_repeatability/results/multi_dataset_summary.csv`） |
 | 證明本地訓練（梯度計算）正確性 | 對「梯度計算」與「加噪過程」生成證明 | 只證明 clipping bound、additive relation、hidden randomness；bounded sign-flip 300/300 通過 gate | 未達成，明示 out of scope | 必須寫入限制；不能沿用提案的「證明本地訓練正確」措辭 |
 | 效能預期 | Heart Disease MLP 證明 `<10 s`、`<1 GB` | 所有單一 proof `<2 s`、peak RSS `<480 MiB`（EZKL 15–1,991 維；Halo2 4 維） | 數值達標但模型不同 | 如實標明模型與資料不同 |
 | 硬體 | NVIDIA GPU 工作站 | 純 CPU | 改道 | 註明 |
@@ -50,7 +50,7 @@
 1. 裁剪與加性噪聲關係可轉為 canonical quantized witness + fixed slack 的 ZKML 可審計條件；推薦 profile 下 honest 9/9 通過、tampered 18/18 拒絕；actual EZKL 在 15–1,991 維完整更新向量上均能拒絕偏移 1 單位的篡改。
 2. Proof 結果可控制聚合：單輪 2/3 接受並回寫模型；4 維 Halo2 線 3 clients × 10 rounds × 5 seeds，150/150 actual proofs、150/150 磁碟重驗、1,050/1,050 負面 probe 拒絕。
 3. Hidden randomness 已進 actual Halo2 circuit；固定 `d=4, k=16, 10 rounds` 的 exact PLD accountant 給出 `epsilon <= 28.840669` at `delta = 1e-5`（replacement client-level，ideal sampler；Poseidon 版為 PRF 假設下的 computational DP）。
-4. 效用與成本已跨 16 個資料集、581,012 筆 CoverType、K=3/10/25/50、R 最多 20、IID／Dirichlet partition 量測；proof 成本隨維度成長（15→650 維 proving time 5.86 倍、proving key 28.4 倍）。
+4. 效用與成本已跨 17 個資料集（含補跑的 Heart Disease）、581,012 筆 CoverType、K=3/10/25/50、R 最多 20、IID／Dirichlet partition 量測；proof 成本隨維度成長（15→650 維 proving time 5.86 倍、proving key 28.4 倍）。
 5. 負面結果：public seed `epsilon = infinity`；replay／zero-noise 需 context 與 noise policy；bounded sign-flip 100% 通過 gate，median／trimmed mean 只部分緩解（retention gain 0.1988／0.1541，`p = 0.001953`）。
 
 不可主張：完整 local-training correctness、任意 poisoning 防禦、高維模型的有限 epsilon、production 部署效能、統計顯著（robust aggregation 除外）。
@@ -62,7 +62,7 @@
 ## 六、投稿前建議補做的實驗（依證據缺口排序）
 
 1. **Mixed accepted／rejected 多輪 live run**：每輪加入一個惡意提交並消耗 ticket，量測 cohort 大小、效用與 availability（`experiments/actual_multiround_halo2/NEXT_EXPERIMENTS.md` 第 1 項）。
-2. **真實資料 4 維實驗**：預先宣告公開特徵子集與量化，用相同電路 profile 比較 no-noise／noisy-no-proof／actual-proof。UCI Heart Disease 可作為此實驗或二元 pipeline 的補跑資料集，以回應提案承諾。
+2. **真實資料 4 維實驗**：預先宣告公開特徵子集與量化，用相同電路 profile 比較 no-noise／noisy-no-proof／actual-proof。UCI Heart Disease 已於 2026-10-18 以二元 pipeline 補跑（線性模型，保留率 0.830882，未達標），但尚未進入此四維電路實驗。
 3. **Natural-client benchmark 與 partial participation／dropout**（FEMNIST／FedScale split）。
 4. **Matched epsilon–utility 對照**：在 `epsilon = 1/4/8` 下與 FL／clip-only 比較；目前只有條件式 Gaussian frontier。
 5. **形式化安全分析**：commitment hiding、PRF-to-DP hybrid、adaptive composition（dominating pair）、selective abort／collusion；由第三方審查 circuit relation。
@@ -74,6 +74,6 @@
 - [ ] 逐條重跑或抽驗附錄 A 的主張—證據對照（至少 `check_repository.py`、accountant 與 Halo2 測試、一個 seed 的多輪實驗）。
 - [ ] 親自核對參考文獻（特別是 F5 列出的條目）。
 - [ ] 填入計畫編號、執行期間、指導教授與系所。
-- [ ] 決定是否補跑 Heart Disease；若不補，保留第一節的改道說明。
+- [x] 補跑 Heart Disease（2026-10-18，`run_multi_dataset_repeats.py --datasets heart_disease --merge-existing`）；第一節與結案報告表 3 已更新。
 - [ ] 依 [`../governance/ai-assistance.md`](../governance/ai-assistance.md) 放入 AI 協助揭露。
 - [ ] 決定 repository 授權並加入 `LICENSE`。

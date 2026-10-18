@@ -105,7 +105,7 @@
 \addcontentsline{toc}{section}{中文摘要}
 聯邦學習（Federated Learning, FL）讓多個客戶端在不集中原始資料的情況下共同訓練模型，而差分隱私（Differential Privacy, DP）常被用來限制單一客戶端更新對模型的影響。然而伺服器通常只能「相信」客戶端確實執行了裁剪與加噪，無法審計。本計畫提出並實作一套以零知識機器學習（ZKML）審計 DP 更新的可驗證差分隱私聯邦學習（VDP-FL）原型，分三個系統層級推進：S0 為 FedAvg 基準、S1 加入裁剪與加噪、S2 將 DP 更新的核心條件轉為零知識可驗證約束並以驗證結果決定聚合。
 
-主要成果如下。第一，本研究發現浮點 DP 條件不能直接搬入整數電路（誠實案例的加性關係在量化後 0/9 精確成立），並提出 canonical quantized witness 與固定容差策略；推薦設定下誠實案例 9/9 通過、篡改案例 18/18 被拒絕，且 EZKL 實際證明在 15 至 1,991 維完整更新向量上均能拒絕僅偏移 1 個量化單位的篡改。第二，本研究把客戶端秘密隨機性、commit-before-challenge 情境綁定、Poseidon 偽隨機產生器、離散二項式噪聲取樣、裁剪與加性關係整合進真正的 Zcash Halo2 電路，並以 3 客戶端 × 10 輪 × 5 種子完成 150/150 份逐更新證明、150/150 份磁碟重驗與 1,050/1,050 次負面探測拒絕。第三，對固定 $d=4$、$k=16$、10 輪的離散噪聲機制建立 exact privacy-loss-distribution 會計，得到 replacement client-level 的 $\eps \le 28.840669$（$\delta=10^{-5}$）。第四，效用與成本評估涵蓋 16 個資料集、581,012 筆 Forest CoverType、最多 50 個客戶端與 20 輪、IID 與 Dirichlet 非同質切分；11 個二元資料集中 9 個在預設參數下維持 90\% 以上 DP/FL 準確率保留率。
+主要成果如下。第一，本研究發現浮點 DP 條件不能直接搬入整數電路（誠實案例的加性關係在量化後 0/9 精確成立），並提出 canonical quantized witness 與固定容差策略；推薦設定下誠實案例 9/9 通過、篡改案例 18/18 被拒絕，且 EZKL 實際證明在 15 至 1,991 維完整更新向量上均能拒絕僅偏移 1 個量化單位的篡改。第二，本研究把客戶端秘密隨機性、commit-before-challenge 情境綁定、Poseidon 偽隨機產生器、離散二項式噪聲取樣、裁剪與加性關係整合進真正的 Zcash Halo2 電路，並以 3 客戶端 × 10 輪 × 5 種子完成 150/150 份逐更新證明、150/150 份磁碟重驗與 1,050/1,050 次負面探測拒絕。第三，對固定 $d=4$、$k=16$、10 輪的離散噪聲機制建立 exact privacy-loss-distribution 會計，得到 replacement client-level 的 $\eps \le 28.840669$（$\delta=10^{-5}$）。第四，效用與成本評估涵蓋 17 個資料集、581,012 筆 Forest CoverType、最多 50 個客戶端與 20 輪、IID 與 Dirichlet 非同質切分；12 個二元資料集（含提案承諾的 UCI Heart Disease）中 9 個在預設參數下維持 90\% 以上 DP/FL 準確率保留率。
 
 本研究同時保留重要負面結果：公開種子的舊機制在驗證者視角下 $\eps=\infty$；僅驗證加性關係不足以阻擋重播與零噪聲提交；在合法裁剪範圍內的符號反轉投毒 300/300 通過證明閘，座標中位數與截尾平均只能部分緩解。因此本研究主張的是「固定 profile 下具秘密隨機性與有限隱私預算的 DP 更新審計原型」，而非完整的本地訓練正確性證明或大規模部署系統。
 
@@ -116,7 +116,7 @@
 \addcontentsline{toc}{section}{Abstract}
 Federated learning (FL) trains a model without centralizing raw data, and differential privacy (DP) bounds the influence of any single client update. In practice, however, the server must simply trust that each client clipped and noised its update as prescribed. This project designs and implements a verifiable differentially private federated learning (VDP-FL) prototype that audits DP updates with zero-knowledge machine learning (ZKML). The work proceeds through three system levels: S0 (FedAvg baseline), S1 (clipping and noise injection), and S2 (DP-update conditions encoded as zero-knowledge constraints whose verification outcome gates aggregation).
 
-The main results are as follows. First, floating-point DP conditions cannot be moved directly into integer circuits (the honest additive relation held exactly in 0/9 quantized cases); we propose a canonical quantized witness with a fixed slack policy, under which 9/9 honest and 18/18 tampered profiles are classified correctly, and actual EZKL proofs over full update vectors of 15 to 1,991 dimensions reject tampering by a single quantization unit. Second, we integrate a setup-bound client secret, commit-before-challenge context binding, a Poseidon pseudorandom generator, a centered-binomial sampler, clipping, and the additive-noise relation into a real Zcash Halo2 circuit, and complete 150/150 per-update proofs, 150/150 disk re-verifications, and 1,050/1,050 rejected negative probes over 3 clients, 10 rounds, and 5 seeds. Third, an exact privacy-loss-distribution accountant for the fixed $d=4$, $k=16$, 10-round discrete-noise profile yields replacement client-level $\eps \le 28.840669$ at $\delta=10^{-5}$. Fourth, utility and cost are evaluated on 16 datasets, the 581,012-row Forest CoverType dataset, up to 50 clients and 20 rounds, and IID/Dirichlet partitions; 9 of 11 binary datasets retain at least 90\% of FL accuracy under default DP settings.
+The main results are as follows. First, floating-point DP conditions cannot be moved directly into integer circuits (the honest additive relation held exactly in 0/9 quantized cases); we propose a canonical quantized witness with a fixed slack policy, under which 9/9 honest and 18/18 tampered profiles are classified correctly, and actual EZKL proofs over full update vectors of 15 to 1,991 dimensions reject tampering by a single quantization unit. Second, we integrate a setup-bound client secret, commit-before-challenge context binding, a Poseidon pseudorandom generator, a centered-binomial sampler, clipping, and the additive-noise relation into a real Zcash Halo2 circuit, and complete 150/150 per-update proofs, 150/150 disk re-verifications, and 1,050/1,050 rejected negative probes over 3 clients, 10 rounds, and 5 seeds. Third, an exact privacy-loss-distribution accountant for the fixed $d=4$, $k=16$, 10-round discrete-noise profile yields replacement client-level $\eps \le 28.840669$ at $\delta=10^{-5}$. Fourth, utility and cost are evaluated on 17 datasets, the 581,012-row Forest CoverType dataset, up to 50 clients and 20 rounds, and IID/Dirichlet partitions; 9 of 12 binary datasets (including the UCI Heart Disease dataset promised in the proposal) retain at least 90\% of FL accuracy under default DP settings.
 
 Negative results are retained: the earlier public-seed mechanism has $\eps=\infty$ from the verifier's view; verifying the additive relation alone does not block replay or zero-noise submissions; and in-range sign-flip poisoning passes the proof gate in 300/300 cases, with coordinate median and trimmed mean providing only partial mitigation. The project therefore claims a fixed-profile DP-update audit prototype with hidden randomness and a finite privacy budget, not full local-training correctness or a production-scale system.
 
@@ -264,7 +264,7 @@ EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，輸出裁
 
 \subsection{實驗設定與評估協議}
 \label{sec:setup}
-表~\ref{tab:datasets} 列出資料集與對應實驗。主線為 UCI Adult Income~\cite{kohavi1996adult}（$K=3$、5 輪、1 local epoch、$C=1.0$、噪聲倍率 0.08、線性模型）；跨資料集重複實驗使用 11 個二元表格資料集與 Iris／Wine／Digits；大型與非同質實驗使用 Forest CoverType~\cite{blackard1999covertype}（581,012 筆、54 特徵、7 類），客戶端切分採 stratified IID 或 Dirichlet($\alpha$)~\cite{hsu2019noniid}；Halo2 多輪整合使用公開合成二元資料（每客戶端 64 筆、測試 512 筆、4 參數 logistic regression）以配合固定 4 維電路。
+表~\ref{tab:datasets} 列出資料集與對應實驗。主線為 UCI Adult Income~\cite{kohavi1996adult}（$K=3$、5 輪、1 local epoch、$C=1.0$、噪聲倍率 0.08、線性模型）；跨資料集重複實驗使用 12 個二元表格資料集（含提案承諾的 UCI Heart Disease Cleveland 子集~\cite{janosi1988heart}，303 筆，二元化為有無心臟病）與 Iris／Wine／Digits；大型與非同質實驗使用 Forest CoverType~\cite{blackard1999covertype}（581,012 筆、54 特徵、7 類），客戶端切分採 stratified IID 或 Dirichlet($\alpha$)~\cite{hsu2019noniid}；Halo2 多輪整合使用公開合成二元資料（每客戶端 64 筆、測試 512 筆、4 參數 logistic regression）以配合固定 4 維電路。
 
 \begin{table}[H]
 \centering\small
@@ -275,7 +275,7 @@ EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，輸出裁
 資料集 & 規模／模型 & 用途 \\
 \midrule
 UCI Adult Income & 線性二元 & S0/S1/S2 主線、量化尺度、約束 profile、EZKL 證明、證明閘單輪 \\
-11 個二元表格資料集 & 522--4,601 筆、線性 & FL/DP 保留率重複實驗（3 seeds） \\
+12 個二元表格資料集（含 UCI Heart Disease） & 303--4,601 筆、線性 & FL/DP 保留率重複實驗（3 seeds） \\
 Iris／Wine／Digits & 15／42／650 參數 & 多類別保留率；完整更新向量 EZKL 成本（3 seeds） \\
 Forest CoverType & 581,012 筆；385／999／1,991 參數 & 大型資料 scaling、K=3/10 非同質、威脅矩陣、K 至 50 與 R 至 20、穩健聚合、385--1,991 維 EZKL 成本 \\
 合成 4 維資料 & 4 參數 logistic & Halo2 秘密隨機性電路、3×10×5 逐更新證明與磁碟重驗 \\
@@ -323,11 +323,11 @@ Canonical witness + 4201 ppm 容差 & 9/9 & 9/9 & 18/18 \\
 
 \subsection{跨資料集效用：二元、多類別、大型與非同質}
 \label{sec:utility}
-表~\ref{tab:binary} 顯示 11 個二元資料集在預設參數下 9 個達到 90\% 保留率。Banknote 與 Blood Transfusion 未達標；參數掃描後 Banknote（10 輪、噪聲 0.04）保留率 0.996970、Blood Transfusion（15 輪、噪聲 0.04）0.988201。依觀察歸因原則，這兩個資料集特徵維度極低（4 維）且基準本身不穩（FL 標準差 0.17／0.11），相同噪聲倍率造成較大的相對干擾，屬參數敏感而非方法不相容；報告保留原始未達標結果而不以調參後數字取代。多類別 Iris／Wine／Digits 的保留率分別為 1.000000／1.009524／0.984586，Wine 略大於 1 反映 3 seeds 的隨機波動，不代表噪聲提升準確率。
+表~\ref{tab:binary} 顯示 12 個二元資料集在預設參數下 9 個達到 90\% 保留率。Banknote、Blood Transfusion 與 Heart Disease 未達標；參數掃描後 Banknote（10 輪、噪聲 0.04）保留率 0.996970、Blood Transfusion（15 輪、噪聲 0.04）0.988201。依觀察歸因原則，這兩個資料集特徵維度極低（4 維）且基準本身不穩（FL 標準差 0.17／0.11），相同噪聲倍率造成較大的相對干擾，屬參數敏感而非方法不相容；報告保留原始未達標結果而不以調參後數字取代。Heart Disease 為提案承諾的資料集，以相同 pipeline 與預設參數補跑（線性模型，而非提案的 MLP）：303 筆是 12 個資料集中最小者，測試集僅 61 筆，FL 最終準確率 0.743169（標準差 0.033685），DP 為 0.617486（標準差 0.130004），保留率 0.830882；三個 seeds 中 seed 42 與 52 的 DP 準確率為 0.655738 與 0.754098，seed 62 跌至 0.442623，是拉低平均的主因。本研究未對 Heart Disease 另做參數掃描，直接保留此未達標結果。多類別 Iris／Wine／Digits 的保留率分別為 1.000000／1.009524／0.984586，Wine 略大於 1 反映 3 seeds 的隨機波動，不代表噪聲提升準確率。
 
 \begin{table}[H]
 \centering\small
-\caption{11 個二元表格資料集的 FL/DP 最終準確率（3 seeds 平均；$K=3$、5 輪、$C=1.0$、噪聲 0.08）}
+\caption{12 個二元表格資料集的 FL/DP 最終準確率（3 seeds 平均；$K=3$、5 輪、$C=1.0$、噪聲 0.08）}
 \label{tab:binary}
 \begin{tabular}{lrrrrc}
 \toprule
@@ -337,6 +337,7 @@ Banknote Authentication & 1,372 & 0.573333 & 0.467879 & 0.816067 & 否 \\
 Blood Transfusion & 748 & 0.615556 & 0.535555 & 0.870036 & 否 \\
 Breast Cancer Wisconsin & 569 & 0.912281 & 0.891813 & 0.977564 & 是 \\
 German Credit & 1,000 & 0.711667 & 0.710000 & 0.997658 & 是 \\
+Heart Disease（Cleveland） & 303 & 0.743169 & 0.617486 & 0.830882 & 否 \\
 ILPD & 583 & 0.609687 & 0.601140 & 0.985981 & 是 \\
 KC2 & 522 & 0.793651 & 0.784127 & 0.988000 & 是 \\
 PC4 & 1,458 & 0.820776 & 0.794521 & 0.968011 & 是 \\
@@ -566,7 +567,7 @@ Bounded sign flip & 1.00 & 1.00 & 0.179797 & 0.179797 \\
 \subsection{綜合討論}
 本研究的證據必須分成兩條線呈現。固定四維 Halo2 線具備真正隱藏的隨機性、逐更新實際證明與有限 profile 的 $\eps$，但資料為合成、維度小、$\eps$ 大、形式化安全不完整。385 至 1,991 維的 EZKL／FL scaling 線有較高維、較多客戶端與輪數的成本與效用壓力測試，但只驗證約束，沒有同等的隱藏隨機性與有限 $\eps$。任何摘要都不應把兩者合併成「高維且 $\eps\le28.84$ 的完整系統」。
 
-從具體到一般：Adult 的單輪證明閘結果是具體案例；16 個資料集、CoverType、非同質與多輪威脅實驗支撐較一般性的說法——constraint-only DP 更新審計在線性模型與本實驗規模上可行且可控制聚合。從一般回到具體：Banknote、Blood Transfusion、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「constraint-only DP 更新審計與證明閘聚合在本研究範圍內成立，且秘密隨機性已可進入實際電路」；最重要的負面結果是「可審計不等於正式 DP，也不等於完整投毒防禦」。
+從具體到一般：Adult 的單輪證明閘結果是具體案例；17 個資料集、CoverType、非同質與多輪威脅實驗支撐較一般性的說法——constraint-only DP 更新審計在線性模型與本實驗規模上可行且可控制聚合。從一般回到具體：Banknote、Blood Transfusion、Heart Disease、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「constraint-only DP 更新審計與證明閘聚合在本研究範圍內成立，且秘密隨機性已可進入實際電路」；最重要的負面結果是「可審計不等於正式 DP，也不等於完整投毒防禦」。
 
 %====================================================================
 \section{結論與建議}
@@ -595,7 +596,7 @@ Bounded sign flip & 1.00 & 1.00 & 0.179797 & 0.179797 \\
 噪聲電路化 & Poseidon PRNG + 查找表逆變換取樣產生拉普拉斯噪聲 & Poseidon PRG + canonical 位元分解 + centered-binomial 取樣進入實際 Halo2 電路 & 達成；改用離散機制以便在有限域精確取樣並建立 exact 會計 \\
 量化對隱私的靈敏度 & 分析 scale 對 $(\eps,\delta)$ 的影響 & 量化尺度對準確率／成本的 sweep、量化誤拒分析、容差策略、域位元偏差上界 & 部分達成；scale 對 $\eps$ 的系統曲線未完成 \\
 邊緣裝置效能邊界 & ARM 裝置量測 & x86 CPU 與跨 OS CI 量測 prove／verify／RSS／proof／payload & 部分達成；ARM 未量測 \\
-資料集與模型 & MNIST LeNet-5、Heart Disease MLP & Adult、11 個二元表格、Iris／Wine／Digits、CoverType、合成 4 維；線性與小型 MLP & 改道；CNN 在 ZK 內成本過高，審查意見要求更多資料集與規模 \\
+資料集與模型 & MNIST LeNet-5、Heart Disease MLP & Adult、12 個二元表格（含 Heart Disease）、Iris／Wine／Digits、CoverType、合成 4 維；線性與小型 MLP & 部分改道；Heart Disease 已以線性模型在二元 pipeline 補跑（保留率 0.830882），MNIST 與 CNN 未做：CNN 在 ZK 內成本過高，審查意見要求更多資料集與規模 \\
 證明本地訓練正確 & 對梯度計算生成證明 & 只證明裁剪、噪聲生成與加性關係；有界投毒 300/300 通過 & 未達成，明示列為範圍外 \\
 效能預期 & Heart Disease MLP 證明 $<10$ s、$<1$ GB & 所有單一證明 $<2$ s、RSS $<480$ MiB（不同模型） & 數值達標但對象不同 \\
 硬體 & GPU 工作站 & 純 CPU & 改道，不影響結論 \\
@@ -607,7 +608,7 @@ Bounded sign flip & 1.00 & 1.00 & 0.179797 & 0.179797 \\
 依證據缺口排序，後續工作建議如下：
 \begin{enumerate}
   \item \textbf{混合接受／拒絕的多輪 live 實驗}：每輪加入惡意提交並消耗 ticket，量測接受群組大小、效用與可用性。
-  \item \textbf{真實資料的四維實驗與 Heart Disease 補跑}：預先宣告公開特徵子集與量化，以相同電路 profile 比較 no-noise／noisy-no-proof／actual-proof；UCI Heart Disease 可用既有二元 pipeline 補跑以回應提案承諾。
+  \item \textbf{真實資料的四維實驗}：預先宣告公開特徵子集與量化，以相同電路 profile 比較 no-noise／noisy-no-proof／actual-proof。UCI Heart Disease 已在二元 pipeline 補跑（第~\ref{sec:utility} 節），但尚未進入四維電路 profile，也未使用提案的 MLP；其保留率未達標，也值得在此實驗中檢查噪聲倍率。
   \item \textbf{自然客戶端基準與部分參與／dropout}（例如 FEMNIST、FedScale 切分），以及 $\eps=1/4/8$ 下與 FL／clip-only 的 matched 對照。
   \item \textbf{形式化安全分析}：commitment hiding、PRF-to-DP hybrid、適應性組合（dominating pair）、selective abort 與勾結；由第三方審查電路關係。
   \item \textbf{高維隱藏隨機性電路}：先定義相鄰性、更新範圍、噪聲單位與目標預算，再設計對應電路與會計；$k=16$ 直接外推會跌破 $\delta$ 下限。
@@ -638,7 +639,7 @@ Bounded sign flip & 1.00 & 1.00 & 0.179797 & 0.179797 \\
 \endhead
 量化誤拒、canonical witness、容差區間、推薦 profile（9/9、18/18） & \path{quantized_constraint_analysis/}, \path{canonical_witness/}, \path{constraint_profile/} & 各目錄 \path{results/*.csv}、\path{summary.md} \\
 EZKL 實際證明、證明閘單輪、端到端回寫 & \path{ezkl_constraint_integration/}, \path{proof_gated_round/}, \path{end_to_end_proof_gated_round/} & \path{results/actual_ezkl_summary.md}, \path{results/proof_gated_round.csv}, \path{results/summary.md} \\
-11 個二元與 3 個多類別資料集保留率 & \path{binary_dataset_repeatability/}, \path{multiclass_repeatability/} & \path{results/multi_dataset_summary.csv}, \path{results/multiclass_summary.csv} \\
+12 個二元（含 Heart Disease）與 3 個多類別資料集保留率 & \path{binary_dataset_repeatability/}, \path{multiclass_repeatability/} & \path{results/multi_dataset_summary.csv}, \path{results/multiclass_summary.csv} \\
 CoverType 樣本量 scaling；非同質與 $K$ scaling & \path{covertype_large_dataset_scaling/}, \path{noniid_client_scaling/} & \path{results/covertype_scaling_summary.csv}, \path{results/noniid_client_summary.csv} \\
 15--650 維與 385--1,991 維 EZKL 成本；$K$ 至 50、$R$ 至 20 & \path{zk_cost_scaling/}, \path{production_scaling/} & \path{results/zk_cost_scaling_summary.csv}, \path{results/actual_ezkl_proof_scaling.csv}, \path{results/scaling_summary.csv} \\
 Halo2 電路與 8 個測試；10 seeds 證明 & \path{halo2_verifiable_randomness/}, \path{cross_backend_reproducibility/} & \path{results/halo2_context_noise_proof.json}, \path{results/halo2_seed_runs.csv} \\

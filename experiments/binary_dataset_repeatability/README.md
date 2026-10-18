@@ -15,11 +15,20 @@ Datasets:
 - PC4 (`OpenML` data id 1049)
 - Blood Transfusion Service Center (`OpenML` data id 1464)
 - KC2 (`OpenML` data id 1063)
+- UCI Heart Disease, Cleveland subset (`OpenML` data id 49, `heart-c`; 303 rows, target binarised to presence/absence of heart disease). Added after the other eleven to cover the dataset promised in the original NSTC proposal.
+
+All datasets share one preprocessing path: median imputation + standardisation for numeric columns, most-frequent imputation + one-hot encoding for categorical columns, with every transformer fitted on the training split only (80/20 stratified split per seed).
 
 ## Run
 
 ```powershell
 python experiments/binary_dataset_repeatability/run_multi_dataset_repeats.py
+```
+
+Add or re-run a single dataset without touching the recorded rows of the others (this is how `heart_disease` was added; the summary files are recomputed over all merged rows):
+
+```powershell
+python experiments/binary_dataset_repeatability/run_multi_dataset_repeats.py --datasets heart_disease --merge-existing
 ```
 
 Run the banknote-specific DP parameter sweep:

@@ -38,6 +38,9 @@ DATASETS = {
     "pc4": {"source": "openml", "data_id": 1049},
     "blood_transfusion": {"source": "openml", "data_id": 1464},
     "kc2": {"source": "openml", "data_id": 1063},
+    # UCI Heart Disease (Cleveland, 303 rows); OpenML "heart-c". Target "<50" / ">50_1" encodes
+    # absence / presence of heart disease, so the binary label is 1 when disease is present.
+    "heart_disease": {"source": "openml", "data_id": 49},
 }
 
 
@@ -305,6 +308,26 @@ def run_experiment(
     }
 
 
+def load_existing_rows(path: Path) -> list[dict[str, object]]:
+    if not path.is_file():
+        return []
+    with path.open(newline="", encoding="utf-8") as csvfile:
+        return list(csv.DictReader(csvfile))
+
+
+def merge_with_existing_rows(
+    new_rows: list[dict[str, object]],
+    existing_path: Path,
+    rerun_datasets: set[str],
+) -> list[dict[str, object]]:
+    """Keep previously recorded rows for datasets that were not re-run, then append the new rows."""
+    kept = [row for row in load_existing_rows(existing_path) if str(row["dataset"]) not in rerun_datasets]
+    merged = kept + new_rows
+    order = {name: idx for idx, name in enumerate(DATASETS)}
+    merged.sort(key=lambda row: order.get(str(row["dataset"]), len(order)))
+    return merged
+
+
 def write_csv(rows: list[dict[str, object]], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
@@ -448,6 +471,12 @@ def main() -> int:
     parser.add_argument("--clients", type=int, default=3)
     parser.add_argument("--clip-norm", type=float, default=1.0)
     parser.add_argument("--noise-multiplier", type=float, default=0.08)
+    parser.add_argument(
+        "--merge-existing",
+        action="store_true",
+        help="Keep rows already recorded in results/multi_dataset_runs.csv for datasets not listed in --datasets, "
+        "so a single new dataset can be added without re-running the others.",
+    )
     args = parser.parse_args()
 
     rows: list[dict[str, object]] = []
@@ -472,6 +501,9 @@ def main() -> int:
                     )
                 )
 
+    if args.merge_existing:
+        rows = merge_with_existing_rows(rows, RESULTS_DIR / "multi_dataset_runs.csv", set(args.datasets))
+
     summary_rows = summarize(rows)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     write_csv(rows, RESULTS_DIR / "multi_dataset_runs.csv")
@@ -485,7 +517,10 @@ def main() -> int:
         clip_norm=args.clip_norm,
         noise_multiplier=args.noise_multiplier,
     )
-    (RESULTS_DIR / "config.json").write_text(json.dumps(vars(args), indent=2), encoding="utf-8")
+    config = dict(vars(args))
+    recorded = {str(row["dataset"]) for row in rows}
+    config["datasets"] = [name for name in DATASETS if name in recorded]
+    (RESULTS_DIR / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
     print(f"Results saved to: {RESULTS_DIR}")
     return 0
 
