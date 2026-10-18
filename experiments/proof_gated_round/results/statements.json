@@ -1,0 +1,181 @@
+{
+  "policy": {
+    "scale": 10000,
+    "clip_rhs_bound_sq": 100000000,
+    "slack_abs": 420100
+  },
+  "clients": [
+    {
+      "client_id": 0,
+      "case_name": "honest_profile",
+      "verified": true,
+      "public_statement": {
+        "clip_sum_sq": 98890825.0,
+        "relation_sum_sq": 0.0,
+        "q_noisy": [
+          279,
+          448,
+          2351,
+          -2004,
+          3393,
+          42,
+          859,
+          -1775,
+          550,
+          -9720
+        ]
+      },
+      "submitted_q_noisy": [
+        279,
+        448,
+        2351,
+        -2004,
+        3393,
+        42,
+        859,
+        -1775,
+        550,
+        -9720
+      ],
+      "decision": {
+        "verified": true,
+        "clip_ok": true,
+        "relation_ok": true,
+        "binding_ok": true,
+        "accepted": true,
+        "reasons": []
+      },
+      "shifted_vector_rejected": true,
+      "statement_error": "",
+      "prove_seconds": 0.07801170001039281,
+      "verify_seconds": 0.028373300010571256
+    },
+    {
+      "client_id": 1,
+      "case_name": "tampered_noisy_profile",
+      "verified": true,
+      "public_statement": {
+        "clip_sum_sq": 99337085.0,
+        "relation_sum_sq": 1.0,
+        "q_noisy": [
+          -1921,
+          4123,
+          2701,
+          -1970,
+          3317,
+          -849,
+          -1299,
+          -2605,
+          -509,
+          -7531
+        ]
+      },
+      "submitted_q_noisy": [
+        -1921,
+        4123,
+        2701,
+        -1970,
+        3317,
+        -849,
+        -1299,
+        -2605,
+        -509,
+        -7531
+      ],
+      "decision": {
+        "verified": true,
+        "clip_ok": true,
+        "relation_ok": false,
+        "binding_ok": true,
+        "accepted": false,
+        "reasons": [
+          "proven relation residual is non-zero"
+        ]
+      },
+      "shifted_vector_rejected": true,
+      "statement_error": "",
+      "prove_seconds": 0.06796899999608286,
+      "verify_seconds": 0.0325594000169076
+    },
+    {
+      "client_id": 2,
+      "case_name": "honest_profile",
+      "verified": true,
+      "public_statement": {
+        "clip_sum_sq": 100010941.0,
+        "relation_sum_sq": 0.0,
+        "q_noisy": [
+          1501,
+          1647,
+          3075,
+          -2740,
+          3314,
+          -1581,
+          1639,
+          -2818,
+          -660,
+          -9822
+        ]
+      },
+      "submitted_q_noisy": [
+        1501,
+        1647,
+        3075,
+        -2740,
+        3314,
+        -1581,
+        1639,
+        -2818,
+        -660,
+        -9822
+      ],
+      "decision": {
+        "verified": true,
+        "clip_ok": true,
+        "relation_ok": true,
+        "binding_ok": true,
+        "accepted": true,
+        "reasons": []
+      },
+      "shifted_vector_rejected": true,
+      "statement_error": "",
+      "prove_seconds": 0.0680329000169877,
+      "verify_seconds": 0.02960989999701269
+    }
+  ],
+  "cross_client_swaps": [
+    {
+      "proof_client": 0,
+      "vector_client": 1,
+      "accepted": false,
+      "reasons": [
+        "submitted q_noisy differs from the proven public q_noisy"
+      ]
+    },
+    {
+      "proof_client": 0,
+      "vector_client": 2,
+      "accepted": false,
+      "reasons": [
+        "submitted q_noisy differs from the proven public q_noisy"
+      ]
+    },
+    {
+      "proof_client": 2,
+      "vector_client": 0,
+      "accepted": false,
+      "reasons": [
+        "submitted q_noisy differs from the proven public q_noisy"
+      ]
+    },
+    {
+      "proof_client": 2,
+      "vector_client": 1,
+      "accepted": false,
+      "reasons": [
+        "submitted q_noisy differs from the proven public q_noisy"
+      ]
+    }
+  ],
+  "note": "Acceptance and the aggregated vector come from proof.json instances decoded by gate.py; artifact.json check flags are not used. Vectors under public_statement are the proven ones."
+}

@@ -157,7 +157,7 @@ robust aggregation 在 CoverType 50,000/20,000、K=10、R=5、Dirichlet α=0.5�
 
 可使用的主張：
 
-> 本研究將 setup-bound client secret、pre-challenge update commitment、client/round/model/challenge context、Poseidon PRG、canonical discrete sampler、clipping 與 additive-noise relation整合進 actual Halo2 proof；對固定四維 centered-binomial profile建立 conservative replacement client-level accountant，取得 ε≤28.840669 at δ=1e-5。系統證據另涵蓋兩種 actual proof backend、10-seed reproducibility、1,991 維 constraint cost、50 clients／20 rounds，以及 10-seed bounded-poisoning robust aggregation。
+> 本研究將 setup-bound client secret、pre-challenge update commitment、client/round/model/challenge context、Poseidon PRG、canonical discrete sampler、clipping 與 additive-noise relation整合進 actual Halo2 proof；對固定四維 centered-binomial profile 的理想機制建立 conservative replacement client-level accountant，會計結果為 ε≈28.84 at δ=1e-5；實際協定完整 transcript 的 computational-DP 證明尚待完成。系統證據另涵蓋兩種 actual proof backend、10-seed reproducibility、1,991 維 constraint cost、50 clients／20 rounds，以及 10-seed bounded-poisoning robust aggregation。
 
 不可使用的主張：
 

@@ -33,7 +33,11 @@ DATASETS = {
     "banknote_authentication": {"source": "openml", "data_id": 1462},
     "spambase": {"source": "openml", "data_id": 44},
     "tic_tac_toe": {"source": "openml", "data_id": 50},
-    "titanic": {"source": "openml", "data_id": 40945},
+    # Titanic (OpenML 40945, 1,309 rows). "boat" (lifeboat) and "body" (body identification number)
+    # are recorded after the outcome and encode survival almost directly, so they are outcome leakage
+    # and are dropped before any split or fitting. See https://hbiostat.org/r/rms/examples for the
+    # column descriptions. The remaining columns are kept unchanged from the earlier run.
+    "titanic": {"source": "openml", "data_id": 40945, "drop_columns": ["boat", "body"]},
     "ilpd": {"source": "openml", "data_id": 1480},
     "pc4": {"source": "openml", "data_id": 1049},
     "blood_transfusion": {"source": "openml", "data_id": 1464},
@@ -68,6 +72,12 @@ def load_raw_dataset(dataset_name: str) -> tuple[pd.DataFrame, np.ndarray]:
 
     data = fetch_openml(data_id=int(spec["data_id"]), as_frame=True, parser="auto")
     x_df = data.data.copy()
+    drop_columns = list(spec.get("drop_columns", []))
+    missing = [col for col in drop_columns if col not in x_df.columns]
+    if missing:
+        raise ValueError(f"{dataset_name}: leakage columns to drop are missing from the source: {missing}")
+    if drop_columns:
+        x_df = x_df.drop(columns=drop_columns)
     y_raw = data.target
     y = LabelEncoder().fit_transform(y_raw)
     if len(np.unique(y)) != 2:
@@ -424,10 +434,10 @@ def write_summary_md(
         "",
         "Datasets:",
     ]
-    lines.extend(
-        f"- {row['dataset']}: samples={row['samples']}, encoded_features={row['input_dim']}"
-        for row in summary_rows
-    )
+    for row in summary_rows:
+        dropped = DATASETS.get(str(row["dataset"]), {}).get("drop_columns")
+        suffix = f", dropped_leakage_columns={dropped}" if dropped else ""
+        lines.append(f"- {row['dataset']}: samples={row['samples']}, encoded_features={row['input_dim']}{suffix}")
     lines.extend(
         [
             "",
@@ -475,9 +485,17 @@ def main() -> int:
         "--merge-existing",
         action="store_true",
         help="Keep rows already recorded in results/multi_dataset_runs.csv for datasets not listed in --datasets, "
-        "so a single new dataset can be added without re-running the others.",
+        "so a single new dataset can be added or re-run without re-running the others.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=RESULTS_DIR,
+        help="Directory for the run/summary CSVs, summary.md and config.json (default: results/). "
+        "--merge-existing always reads the recorded rows from results/multi_dataset_runs.csv.",
     )
     args = parser.parse_args()
+    output_dir: Path = args.output_dir
 
     rows: list[dict[str, object]] = []
     for dataset_name in args.datasets:
@@ -505,12 +523,12 @@ def main() -> int:
         rows = merge_with_existing_rows(rows, RESULTS_DIR / "multi_dataset_runs.csv", set(args.datasets))
 
     summary_rows = summarize(rows)
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    write_csv(rows, RESULTS_DIR / "multi_dataset_runs.csv")
-    write_summary_csv(summary_rows, RESULTS_DIR / "multi_dataset_summary.csv")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    write_csv(rows, output_dir / "multi_dataset_runs.csv")
+    write_summary_csv(summary_rows, output_dir / "multi_dataset_summary.csv")
     write_summary_md(
         summary_rows,
-        RESULTS_DIR / "summary.md",
+        output_dir / "summary.md",
         seeds=args.seeds,
         rounds=args.rounds,
         clients=args.clients,
@@ -518,10 +536,17 @@ def main() -> int:
         noise_multiplier=args.noise_multiplier,
     )
     config = dict(vars(args))
+    try:
+        config["output_dir"] = output_dir.resolve().relative_to(BASE_DIR).as_posix()
+    except ValueError:
+        config["output_dir"] = str(output_dir)
     recorded = {str(row["dataset"]) for row in rows}
     config["datasets"] = [name for name in DATASETS if name in recorded]
-    (RESULTS_DIR / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
-    print(f"Results saved to: {RESULTS_DIR}")
+    config["dropped_columns"] = {
+        name: DATASETS[name]["drop_columns"] for name in config["datasets"] if DATASETS[name].get("drop_columns")
+    }
+    (output_dir / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+    print(f"Results saved to: {output_dir}")
     return 0
 
 

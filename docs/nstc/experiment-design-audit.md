@@ -13,7 +13,7 @@
 | 研究問題三：邊緣裝置（ARM）效能邊界 | 在 ARM 類邊緣裝置量測 proving time／RAM／proof size | 全部量測在 Intel x86（Windows）與 GitHub Ubuntu／Windows runner；有 prove/verify/RSS/proof size/payload，無 ARM | 部分達成 | 以 x86 CPU 數據代替，ARM 列為限制 |
 | 資料集 | MNIST（LeNet-5 CNN）、UCI Heart Disease（MLP） | UCI Adult 主線、12 個二元表格（含 2026-10-18 以既有 pipeline 補跑的 UCI Heart Disease Cleveland 303 筆，線性模型，3 seeds × FL/DP；保留率 0.830882，未達 90% 門檻，未調參）、Iris/Wine/Digits、Forest CoverType 581,012 筆、4 維合成資料；無 MNIST | 部分改道（Heart Disease 已補跑，但模型為線性而非 MLP） | 說明 CNN 在 ZK 內成本與審查人要求更多資料集；Heart Disease 結果如實列入表 3 與正文（`experiments/binary_dataset_repeatability/results/multi_dataset_summary.csv`） |
 | 證明本地訓練（梯度計算）正確性 | 對「梯度計算」與「加噪過程」生成證明 | 只證明 clipping bound、additive relation、hidden randomness；bounded sign-flip 300/300 通過 gate | 未達成，明示 out of scope | 必須寫入限制；不能沿用提案的「證明本地訓練正確」措辭 |
-| 效能預期 | Heart Disease MLP 證明 `<10 s`、`<1 GB` | 所有單一 proof `<2 s`、peak RSS `<480 MiB`（EZKL 15–1,991 維；Halo2 4 維） | 數值達標但模型不同 | 如實標明模型與資料不同 |
+| 效能預期 | Heart Disease MLP 證明 `<10 s`、`<1 GB` | Halo2 4 維 150 份逐更新 proof 平均 1.952 s、最大 3.994 s（60 份 > 2 s）；EZKL 1,991 維平均 1.658 s、最大 1.858 s；peak RSS `<480 MiB` | 低於 10 s 門檻，但模型不同；「所有單一 proof < 2 s」與原始 `run.json` 不符，已更正 | 如實標明模型與資料不同，並以原始 `seed_*/run.json` 的 `prove_seconds` 為準 |
 | 硬體 | NVIDIA GPU 工作站 | 純 CPU | 改道 | 註明 |
 | 框架 | EZKL 為主 | EZKL（KZG）+ Zcash Halo2（IPA）兩個 backend | 超出提案 | 說明兩者 circuit 不同，不做 head-to-head |
 
@@ -42,6 +42,14 @@
 | F9 | Repository 無 `LICENSE` | 根目錄 | 作者決定授權後再加入；結案報告不受影響 |
 | F10 | CI 最近一次（2026-10-05，run `37257413993`）Ubuntu／Windows 均通過 | GitHub Actions | 可在報告引用為獨立環境重現證據 |
 | F11 | 舊草稿 `report.tex` 指定字型 `AR PL KaitiM Big5`，本機與多數 Windows 無此字型 | zip | 新報告改用 TW-Kai → 標楷體（DFKai-SB）→ Noto Serif TC 的 fallback 鏈 |
+| R1 | （外部審查 2026-10-18）EZKL 線 `q_noisy` 在私有輸入，聚合時另從 artifact 讀向量與 check flags，證明未綁定實際聚合的向量 | `proof_gated_round/run_actual_proof_gated_round.py` | 檢查模型新增公開輸出 `public_q_noisy`；`gate.py` 由 proof instances 解碼陳述、重算 clip／relation、要求提交向量等於證明向量；`test_gate.py` 覆蓋「合法 proof + 替換向量 → 拒絕」；EZKL 三個 client 已重跑 |
+| R2 | （外部審查）摘要與結論把理想機制的 `epsilon <= 28.84` 寫成實際系統的完整保證 | `final-report.tex` 摘要、§4.5、§5.5、§6.1 | 統一改為「理想離散機制的會計結果為 epsilon 約 28.84；實際協定的完整 computational-DP 證明尚待完成」 |
+| R3 | （外部審查）Titanic 使用 OpenML 40945 全部欄位，含結果洩漏欄位 `boat`、`body` | `binary_dataset_repeatability/` | 刪除兩欄重跑（其餘設定不變）：FL 0.755725、DP 0.739186、保留率 0.978114，仍達標；表 9 與摘要列更新 |
+| R4 | （外部審查）公開 commit `4623db8` 無 Heart Disease 程式與結果 | `binary_dataset_repeatability/` | 程式與結果自 commit `bf2dd27` 起在 `docs/nstc-final-report` 分支；報告附錄 A 標明 commit |
+| R5 | （外部審查）Nasr et al. 2023 被反向引用為「審計需要數千次訓練」 | `final-report.tex` §1、§3.2 | 改述為該文把緊審計降為兩次訓練，保留「統計審計無法逐次判定協定執行」的論點 |
+| R6 | （外部審查）高維「無法取得有限 epsilon」未說明假設；固定 `sum(q^2)<=4` 下每向量最多 4 個非零座標，不可能全部座標位移 2 | `discrete_noise_accounting/`、`final-report.tex` §5.5 | 新增 `fixed_norm_pattern_accounting.py`：固定上界下最壞 pattern `(4,0)`，epsilon 與維度無關（10 輪 28.840669、20 輪 46.855616）；原外推改述為「上界隨 d 放寬到每座標位移 2」的假設 |
+| R7 | （外部審查）「所有單一證明 < 2 s」與 `run.json` 不符（60/150 > 2 s，最大 3.994 s） | `final-report.tex` 表 13、本文件 | 改為「平均 1.952 s、最大 3.994 s」，仍低於 10 s 門檻 |
+| R8 | （外部審查小修）文獻 [11] 第二作者、卷期頁碼；封面佔位符；附錄 B 指令的 U+2010 連字號 | `ref.bib`、`final-report.tex` | 文獻改為 Bontekoe, Asghar, Turkmen, PoPETs 2025(2):543–563；連字號問題來自 XeTeX 字型 ToUnicode，已以 `\XeTeXgenerateactualtext=1` 修正；封面欄位待作者提供 |
 
 ## 四、結案報告採用的主張措辭
 
@@ -49,7 +57,7 @@
 
 1. 裁剪與加性噪聲關係可轉為 canonical quantized witness + fixed slack 的 ZKML 可審計條件；推薦 profile 下 honest 9/9 通過、tampered 18/18 拒絕；actual EZKL 在 15–1,991 維完整更新向量上均能拒絕偏移 1 單位的篡改。
 2. Proof 結果可控制聚合：單輪 2/3 接受並回寫模型；4 維 Halo2 線 3 clients × 10 rounds × 5 seeds，150/150 actual proofs、150/150 磁碟重驗、1,050/1,050 負面 probe 拒絕。
-3. Hidden randomness 已進 actual Halo2 circuit；固定 `d=4, k=16, 10 rounds` 的 exact PLD accountant 給出 `epsilon <= 28.840669` at `delta = 1e-5`（replacement client-level，ideal sampler；Poseidon 版為 PRF 假設下的 computational DP）。
+3. Hidden randomness 已進 actual Halo2 circuit；固定 `d=4, k=16, 10 rounds` 的**理想離散機制**，exact PLD 會計結果為 `epsilon ≈ 28.84` at `delta = 1e-5`（replacement client-level，ideal sampler）。實際協定完整 transcript 的 computational-DP 證明尚待完成；Poseidon 版的結論依賴 PRF 假設。
 4. 效用與成本已跨 17 個資料集（含補跑的 Heart Disease）、581,012 筆 CoverType、K=3/10/25/50、R 最多 20、IID／Dirichlet partition 量測；proof 成本隨維度成長（15→650 維 proving time 5.86 倍、proving key 28.4 倍）。
 5. 負面結果：public seed `epsilon = infinity`；replay／zero-noise 需 context 與 noise policy；bounded sign-flip 100% 通過 gate，median／trimmed mean 只部分緩解（retention gain 0.1988／0.1541，`p = 0.001953`）。
 
@@ -66,7 +74,7 @@
 3. **Natural-client benchmark 與 partial participation／dropout**（FEMNIST／FedScale split）。
 4. **Matched epsilon–utility 對照**：在 `epsilon = 1/4/8` 下與 FL／clip-only 比較；目前只有條件式 Gaussian frontier。
 5. **形式化安全分析**：commitment hiding、PRF-to-DP hybrid、adaptive composition（dominating pair）、selective abort／collusion；由第三方審查 circuit relation。
-6. **高維 hidden-randomness circuit**：先定義 adjacency、update envelope、noise unit 與目標 budget；`k=16` 直接外推到 385／1,991 維會跌破 delta floor。
+6. **高維 hidden-randomness circuit**：先定義 adjacency、update envelope、noise unit 與目標 budget。若維持 `sum(q^2) <= 4` 的固定上界，有限 epsilon 與維度無關（`fixed_norm_pattern_accounting.py`），但每輪只有 4 個 ±1 座標；若放寬到每座標皆可位移 2，`k=16` 在 385／1,991 維會跌破 delta floor。兩者之間的更新範圍與裁剪上界選擇是待做的設計工作。
 7. **ARM／邊緣裝置量測**與 **key reuse／parallel proving** 受控比較，回應提案研究問題三與 1,000-proof 外推。
 
 ## 七、送件前作者自查
@@ -75,5 +83,7 @@
 - [ ] 親自核對參考文獻（特別是 F5 列出的條目）。
 - [ ] 填入計畫編號、執行期間、指導教授與系所。
 - [x] 補跑 Heart Disease（2026-10-18，`run_multi_dataset_repeats.py --datasets heart_disease --merge-existing`）；第一節與結案報告表 3 已更新。
+- [x] Titanic 去除 `boat`、`body` 後重跑（2026-10-18，`run_multi_dataset_repeats.py --datasets titanic --merge-existing`）。
+- [x] EZKL 證明閘公開 `q_noisy` 綁定與拒絕測試（R1）；三個 client 以 EZKL 10.2.7 重跑。
 - [ ] 依 [`../governance/ai-assistance.md`](../governance/ai-assistance.md) 放入 AI 協助揭露。
 - [ ] 決定 repository 授權並加入 `LICENSE`。

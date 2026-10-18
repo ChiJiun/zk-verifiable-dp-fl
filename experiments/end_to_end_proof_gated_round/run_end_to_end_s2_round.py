@@ -4,7 +4,6 @@ end-to-end proof-gated round - End-to-end S2 round outcome using proof-gated agg
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import os
 import sys
@@ -34,10 +33,14 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_proof_gated_rows() -> list[dict[str, str]]:
-    csv_path = PROOF_GATED_DIR / "results" / "proof_gated_round.csv"
-    with csv_path.open("r", encoding="utf-8", newline="") as csvfile:
-        return list(csv.DictReader(csvfile))
+def load_proof_gated_statements() -> list[dict[str, object]]:
+    """Per-client proven statements and decisions written by proof_gated_round (statements.json)."""
+    statements_path = PROOF_GATED_DIR / "results" / "statements.json"
+    if not statements_path.is_file():
+        raise FileNotFoundError(
+            f"{statements_path} not found; run experiments/proof_gated_round/run_actual_proof_gated_round.py first"
+        )
+    return load_json(statements_path)["clients"]
 
 
 def vector_to_state(vector: list[float], shapes: dict[str, list[int]]) -> dict[str, torch.Tensor]:
@@ -64,19 +67,21 @@ def dequantize_vector(vector: list[float], scale: int) -> list[float]:
     return [value / scale for value in vector]
 
 
-def build_case_vectors(rows: list[dict[str, str]]) -> tuple[list[list[int]], list[list[int]], dict[str, list[int]]]:
+def build_case_vectors(clients: list[dict[str, object]]) -> tuple[list[list[int]], list[list[int]], dict[str, list[int]]]:
+    """Accepted vectors are the *proven* public q_noisy from the proof statements; the ungated
+    comparison aggregates every submitted vector. The artifact is read only for tensor shapes."""
     accepted_vectors: list[list[int]] = []
     selected_vectors: list[list[int]] = []
     shapes: dict[str, list[int]] | None = None
 
-    for row in rows:
-        client_id = int(row["client_id"])
-        case_name = row["case_name"]
-        artifact = load_json(ARTIFACTS_DIR / f"client_{client_id}_{case_name}.json")
-        selected_vectors.append(artifact["witness"]["q_noisy"])
-        if row["accepted"] == "True":
-            accepted_vectors.append(artifact["witness"]["q_noisy"])
+    for client in clients:
+        client_id = int(client["client_id"])
+        case_name = str(client["case_name"])
+        selected_vectors.append([int(v) for v in client["submitted_q_noisy"]])
+        if client["decision"]["accepted"]:
+            accepted_vectors.append([int(v) for v in client["public_statement"]["q_noisy"]])
         if shapes is None:
+            artifact = load_json(ARTIFACTS_DIR / f"client_{client_id}_{case_name}.json")
             shapes = artifact["meta"]["shapes"]
 
     if shapes is None:
@@ -119,8 +124,8 @@ def main() -> int:
     print("end-to-end proof-gated round - End-to-End S2 Round")
     print("=" * 60)
 
-    rows = load_proof_gated_rows()
-    accepted_vectors, selected_vectors, shapes = build_case_vectors(rows)
+    clients = load_proof_gated_statements()
+    accepted_vectors, selected_vectors, shapes = build_case_vectors(clients)
 
     accepted_average_q = average_vectors(accepted_vectors)
     ungated_average_q = average_vectors(selected_vectors)

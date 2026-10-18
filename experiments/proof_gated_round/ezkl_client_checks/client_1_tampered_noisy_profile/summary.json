@@ -1,9 +1,21 @@
 {
   "verified": true,
-  "clip_sum_sq": 99337072.0,
-  "relation_sum_sq": 1.0,
-  "clip_rhs_bound_sq": 100000000,
-  "slack_abs": 420100,
-  "clip_ok": true,
-  "relation_ok": false
+  "prove_seconds": 0.06796899999608286,
+  "verify_seconds": 0.0325594000169076,
+  "float32_model_outputs": {
+    "clip_sum_sq": 99337072.0,
+    "relation_sum_sq": 1.0,
+    "public_q_noisy": [
+      -1921,
+      4123,
+      2701,
+      -1970,
+      3317,
+      -849,
+      -1299,
+      -2605,
+      -509,
+      -7531
+    ]
+  }
 }

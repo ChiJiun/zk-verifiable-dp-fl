@@ -29,6 +29,7 @@
 | 對手／失敗模式 | 目前處理 | 尚未成立的保證 |
 |---|---|---|
 | 偽造 clipping 或 additive relation | Halo2／EZKL constraint 拒絕 | 不證明更新由指定 optimizer 或資料產生 |
+| 保留合法 proof、替換提交聚合的向量 | Halo2 線 `q_noisy` 為 public input；EZKL 線自 2026-10-18 起把 `q_noisy` 列為 public output，server 只聚合證明中公開的向量（`proof_gated_round/gate.py`） | 綁定的是向量與約束，不是向量的來源 |
 | Public seed、zero noise、context swap | Halo2 hidden randomness 與 context binding | 完整 transcript 的 computational DP 仍依賴 PRF、ZK 與 composition 假設 |
 | Replay／challenge grinding | commit-before-challenge、single-use challenge、server replay state | selective abort／dropout leakage 尚未形式化 |
 | 合法範圍內 bounded poisoning | 實測 median／trimmed mean 緩解 | 300/300 惡意更新仍通過 gate；不是任意 Byzantine 防禦 |
@@ -37,9 +38,10 @@
 
 ## 隱私主張
 
-- **可主張**：固定 `d=4, k=16`、10 rounds、replacement-client、固定 participation profile 下，exact accountant 給出 `epsilon <= 28.840669` at `delta = 1e-5`。
+- **可主張**：固定 `d=4, k=16`、10 rounds、replacement-client、固定 participation profile 的**理想離散機制**，exact accountant 的會計結果為 `epsilon ≈ 28.84`（`28.840669`）at `delta = 1e-5`。若維持 `sum(q^2) <= 4` 的固定上界，此上界與維度無關（最壞 pattern 為 4 個座標位移 2）。
+- **尚待完成**：實際協定完整 transcript（commitment、challenge、proof、timing、retry）的 computational-DP 證明。摘要與結論不得把會計值寫成實際系統已具備的完整保證。
 - **條件**：Poseidon 輸出需可視為適當 PRF／pseudorandom source，secret 不洩漏，context 唯一，commit-before-challenge，且 proof system 的 soundness／zero-knowledge 假設成立。
-- **不可外推**：385–1,991 維的 EZKL/scaling 實驗沒有隱藏 randomness theorem，也不繼承上述 epsilon。`epsilon = 28.84` 亦不代表實務上有強隱私。
+- **不可外推**：385–1,991 維的 EZKL/scaling 實驗沒有隱藏 randomness theorem，也不繼承上述 epsilon；其量化尺度（`s=10000`）與裁剪上界（`(Cs)^2 = 1e8`）與四維電路不同。「高維無法取得有限 epsilon」只在裁剪上界隨維度放寬到每座標皆可位移 2 時成立。`epsilon = 28.84` 亦不代表實務上有強隱私。
 
 ## 兩條實驗線必須分開呈現
 

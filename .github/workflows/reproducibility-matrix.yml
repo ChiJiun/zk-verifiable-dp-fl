@@ -53,6 +53,14 @@ jobs:
         run: >-
           python -m unittest discover
           -s experiments/actual_multiround_halo2 -p "test*.py" -v
+      - name: Test EZKL proof-gate statement binding
+        run: >-
+          python -m unittest discover
+          -s experiments/proof_gated_round -p "test*.py" -v
+      - name: Test fixed-bound pattern accounting
+        run: >-
+          python -m unittest discover
+          -s experiments/discrete_noise_accounting -p "test_fixed*.py" -v
       - name: Prove and reverify a complete two-client two-round trajectory
         run: >-
           python experiments/actual_multiround_halo2/run_experiment.py

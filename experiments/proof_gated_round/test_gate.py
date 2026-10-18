@@ -1,0 +1,180 @@
+"""Regression tests for the EZKL proof gate: the aggregated vector must be the proven one."""
+from __future__ import annotations
+
+import json
+import sys
+import unittest
+from pathlib import Path
+
+EXPERIMENTS_ROOT = Path(__file__).resolve().parents[1]
+if str(EXPERIMENTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXPERIMENTS_ROOT))
+
+from proof_gated_round.gate import (  # noqa: E402
+    BN254_SCALAR_MODULUS,
+    RECOMMENDED_POLICY,
+    PublicStatement,
+    aggregate_accepted,
+    decide,
+    decode_field_element,
+    decode_instances,
+    decode_public_statement,
+    encode_field_element,
+    public_statement_from_outputs,
+)
+
+BASE_DIR = Path(__file__).resolve().parent
+CASE_DIRS = {
+    "honest_0": BASE_DIR / "ezkl_client_checks" / "client_0_honest_profile",
+    "tampered_1": BASE_DIR / "ezkl_client_checks" / "client_1_tampered_noisy_profile",
+    "honest_2": BASE_DIR / "ezkl_client_checks" / "client_2_honest_profile",
+}
+LEGACY_DEMO = EXPERIMENTS_ROOT / "ezkl_constraint_integration" / "ezkl_actual_demo" / "honest_profile"
+
+HONEST_Q_NOISY = [279, 448, 2351, -2004, 3393, 42, 859, -1775, 550, -9720]
+
+
+def load(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def fake_proof(clip_sum_sq: int, relation_sum_sq: int, q_noisy: list[int], *, check_scale: int = 26, vector_scale: int = 13):
+    """Build a proof/settings pair with the encoding EZKL writes, without running EZKL."""
+    instances = [encode_field_element(clip_sum_sq, scale=check_scale), encode_field_element(relation_sum_sq, scale=check_scale)]
+    instances += [encode_field_element(value, scale=vector_scale) for value in q_noisy]
+    proof = {"instances": [instances]}
+    settings = {"model_instance_shapes": [[1, 2], [1, len(q_noisy)]], "model_output_scales": [check_scale, vector_scale]}
+    return proof, settings
+
+
+class FieldDecodingTests(unittest.TestCase):
+    def test_round_trip_signed_fixed_point(self) -> None:
+        for value in (0, 1, -1, 9720, -9720, 99_337_085):
+            for scale in (13, 26):
+                encoded = encode_field_element(value, scale=scale)
+                self.assertEqual(len(encoded), 64)
+                self.assertEqual(decode_field_element(encoded, scale=scale), float(value))
+
+    def test_negative_values_use_modular_complement(self) -> None:
+        encoded = encode_field_element(-3, scale=0)
+        self.assertEqual(int.from_bytes(bytes.fromhex(encoded), "little"), BN254_SCALAR_MODULUS - 3)
+        self.assertEqual(decode_field_element(encoded, scale=0), -3.0)
+
+    @unittest.skipUnless((LEGACY_DEMO / "proof.json").is_file(), "recorded EZKL demo proof not present")
+    def test_decoder_matches_ezkl_pretty_outputs_on_recorded_proof(self) -> None:
+        proof = load(LEGACY_DEMO / "proof.json")
+        settings = load(LEGACY_DEMO / "settings.json")
+        decoded = decode_instances(proof, settings)
+        pretty = proof["pretty_public_inputs"]["rescaled_outputs"]
+        self.assertEqual(len(decoded), len(pretty))
+        for ours, theirs in zip(decoded, pretty):
+            self.assertEqual([float(v) for v in ours], [float(v) for v in theirs])
+
+    @unittest.skipUnless((LEGACY_DEMO / "proof.json").is_file(), "recorded EZKL demo proof not present")
+    def test_legacy_statement_without_public_update_is_refused(self) -> None:
+        proof = load(LEGACY_DEMO / "proof.json")
+        settings = load(LEGACY_DEMO / "settings.json")
+        with self.assertRaises(ValueError):
+            decode_public_statement(proof, settings)
+
+
+class DecisionTests(unittest.TestCase):
+    def honest_statement(self) -> PublicStatement:
+        proof, settings = fake_proof(98_890_825, 0, HONEST_Q_NOISY)
+        return decode_public_statement(proof, settings)
+
+    def test_honest_submission_is_accepted(self) -> None:
+        statement = self.honest_statement()
+        decision = decide(verified=True, statement=statement, submitted_q_noisy=HONEST_Q_NOISY)
+        self.assertTrue(decision.accepted)
+        self.assertEqual(decision.reasons, ())
+
+    def test_valid_proof_with_swapped_vector_is_rejected(self) -> None:
+        """The attack from the review: keep a proof that verifies, submit a different update."""
+        statement = self.honest_statement()
+        swapped = list(HONEST_Q_NOISY)
+        swapped[3] += 1
+        decision = decide(verified=True, statement=statement, submitted_q_noisy=swapped)
+        self.assertTrue(decision.verified and decision.clip_ok and decision.relation_ok)
+        self.assertFalse(decision.binding_ok)
+        self.assertFalse(decision.accepted)
+        self.assertIn("submitted q_noisy differs from the proven public q_noisy", decision.reasons)
+
+        other_client_vector = [v * -1 for v in HONEST_Q_NOISY]
+        self.assertFalse(decide(verified=True, statement=statement, submitted_q_noisy=other_client_vector).accepted)
+        self.assertFalse(decide(verified=True, statement=statement, submitted_q_noisy=HONEST_Q_NOISY[:-1]).accepted)
+
+    def test_relation_violation_is_rejected_from_public_residual_only(self) -> None:
+        proof, settings = fake_proof(99_337_085, 1, HONEST_Q_NOISY)
+        statement = decode_public_statement(proof, settings)
+        # No artifact flags are consulted; a client claiming relation_ok=True changes nothing.
+        decision = decide(verified=True, statement=statement, submitted_q_noisy=HONEST_Q_NOISY)
+        self.assertFalse(decision.relation_ok)
+        self.assertFalse(decision.accepted)
+
+    def test_clip_violation_is_rejected(self) -> None:
+        bound = RECOMMENDED_POLICY.clip_rhs_bound_sq + RECOMMENDED_POLICY.slack_abs
+        proof, settings = fake_proof(bound + 1, 0, HONEST_Q_NOISY)
+        decision = decide(verified=True, statement=decode_public_statement(proof, settings), submitted_q_noisy=HONEST_Q_NOISY)
+        self.assertFalse(decision.clip_ok)
+        self.assertFalse(decision.accepted)
+        proof, settings = fake_proof(bound, 0, HONEST_Q_NOISY)
+        self.assertTrue(
+            decide(verified=True, statement=decode_public_statement(proof, settings), submitted_q_noisy=HONEST_Q_NOISY).clip_ok
+        )
+
+    def test_unverified_proof_is_rejected(self) -> None:
+        decision = decide(verified=False, statement=self.honest_statement(), submitted_q_noisy=HONEST_Q_NOISY)
+        self.assertFalse(decision.accepted)
+        self.assertIn("proof did not verify", decision.reasons)
+
+    def test_non_integer_public_vector_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            public_statement_from_outputs([[1.0, 0.0], [1.5, 2.0]])
+
+    def test_aggregate_uses_proven_vectors_only(self) -> None:
+        a = PublicStatement(1.0, 0.0, (1, 2, 3))
+        b = PublicStatement(1.0, 0.0, (3, 2, 1))
+        rejected = PublicStatement(1.0, 1.0, (100, 100, 100))
+        decisions = [
+            decide(verified=True, statement=a, submitted_q_noisy=[1, 2, 3]),
+            decide(verified=True, statement=b, submitted_q_noisy=[3, 2, 1]),
+            decide(verified=True, statement=rejected, submitted_q_noisy=[100, 100, 100]),
+        ]
+        self.assertEqual(aggregate_accepted([a, b, rejected], decisions), [2.0, 2.0, 2.0])
+
+
+class RecordedProofTests(unittest.TestCase):
+    """Run against the proofs regenerated by run_actual_proof_gated_round.py when they are present."""
+
+    def setUp(self) -> None:
+        if not all((path / "proof.json").is_file() and (path / "settings.json").is_file() for path in CASE_DIRS.values()):
+            self.skipTest("regenerated EZKL proofs not present")
+        self.cases = {
+            name: (load(path / "proof.json"), load(path / "settings.json"), load(path / "artifact.json"))
+            for name, path in CASE_DIRS.items()
+        }
+        if any(len(settings["model_instance_shapes"]) != 2 for _, settings, _ in self.cases.values()):
+            self.skipTest("recorded proofs predate the public q_noisy binding")
+
+    def test_public_statement_binds_the_artifact_vector(self) -> None:
+        for name, (proof, settings, artifact) in self.cases.items():
+            statement = decode_public_statement(proof, settings)
+            self.assertEqual(list(statement.q_noisy), artifact["witness"]["q_noisy"], name)
+            expected_clip = sum(v * v for v in artifact["witness"]["q_clipped"])
+            self.assertLessEqual(abs(statement.clip_sum_sq - expected_clip), 64, name)
+
+    def test_recorded_honest_proofs_accept_and_swaps_reject(self) -> None:
+        honest_0 = decode_public_statement(*self.cases["honest_0"][:2])
+        honest_2 = decode_public_statement(*self.cases["honest_2"][:2])
+        tampered = decode_public_statement(*self.cases["tampered_1"][:2])
+        self.assertTrue(decide(verified=True, statement=honest_0, submitted_q_noisy=honest_0.q_noisy).accepted)
+        self.assertTrue(decide(verified=True, statement=honest_2, submitted_q_noisy=honest_2.q_noisy).accepted)
+        self.assertFalse(decide(verified=True, statement=tampered, submitted_q_noisy=tampered.q_noisy).accepted)
+        # Valid honest proof, tampered client's vector submitted in its place.
+        self.assertFalse(decide(verified=True, statement=honest_0, submitted_q_noisy=tampered.q_noisy).accepted)
+        self.assertFalse(decide(verified=True, statement=honest_0, submitted_q_noisy=honest_2.q_noisy).accepted)
+
+
+if __name__ == "__main__":
+    unittest.main()

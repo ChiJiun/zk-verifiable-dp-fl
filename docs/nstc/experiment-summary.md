@@ -8,7 +8,7 @@
 
 實驗從最小 EZKL prove/verify、FedAvg 與 DP updater baseline 開始，逐步完成量化約束、actual EZKL proof、proof-gated aggregation、16 個資料集重複實驗、581,012 筆 Forest CoverType 大型資料、K=3/10 與 non-IID client partition、多輪攻擊矩陣、正式 privacy accounting、統計與可重現性稽核，以及 context-bound hidden-randomness 參考協定。
 
-整體結果支持以下較精確的結論：**DP update 的 clipping bound、context-bound hidden randomness、Poseidon PRG、離散噪聲 sampler 與 additive relation，已可被整合為 actual Halo2 可審計條件，而且 proof/check 結果可以控制 FL aggregation。** discrete-noise accounting 已對固定 `d=4, k=16, 10 rounds` profile 建立 replacement client-level accountant，得到 `epsilon <= 28.840669` at `delta=1e-5`；實際 Poseidon 版本是在 PRF assumption 下的 computational DP。此保證不能外推到全部高維 FL experiments，proof 也仍未驗證完整 local training。
+整體結果支持以下較精確的結論：**DP update 的 clipping bound、context-bound hidden randomness、Poseidon PRG、離散噪聲 sampler 與 additive relation，已可被整合為 actual Halo2 可審計條件，而且 proof/check 結果可以控制 FL aggregation。** discrete-noise accounting 已對固定 `d=4, k=16, 10 rounds` profile 的**理想離散機制**建立 replacement client-level accountant，會計結果為 `epsilon ≈ 28.84` at `delta=1e-5`；實際協定完整 transcript 的 computational-DP 證明尚待完成（Poseidon 版本目前只是 PRF assumption 下的條件式結果）。此會計值不能外推到高維 EZKL FL experiments（它們使用不同的量化與裁剪上界），proof 也仍未驗證完整 local training。
 
 > 投稿強化階段的方法、結果與主張邊界，請以 `docs/publication/strengthening-report.md` 為最新依據；本文件前半保留前期實驗的歷程證據。
 

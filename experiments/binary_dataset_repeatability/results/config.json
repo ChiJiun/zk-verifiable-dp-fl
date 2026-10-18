@@ -25,5 +25,12 @@
   "clients": 3,
   "clip_norm": 1.0,
   "noise_multiplier": 0.08,
-  "merge_existing": true
+  "merge_existing": true,
+  "output_dir": "results",
+  "dropped_columns": {
+    "titanic": [
+      "boat",
+      "body"
+    ]
+  }
 }

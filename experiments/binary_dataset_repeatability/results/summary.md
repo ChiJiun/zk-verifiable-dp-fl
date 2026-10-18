@@ -16,7 +16,7 @@ Datasets:
 - pima_diabetes: samples=768, encoded_features=8
 - spambase: samples=4601, encoded_features=57
 - tic_tac_toe: samples=958, encoded_features=27
-- titanic: samples=1309, encoded_features=2357
+- titanic: samples=1309, encoded_features=2330, dropped_leakage_columns=['boat', 'body']
 
 Configuration:
 - seeds: [42, 52, 62]
@@ -39,7 +39,7 @@ Results:
 | pima_diabetes | 0.731602 | 0.714286 | 0.017316 | 0.976332 | True |
 | spambase | 0.913138 | 0.907347 | 0.005791 | 0.993658 | True |
 | tic_tac_toe | 0.656250 | 0.645833 | 0.010417 | 0.984126 | True |
-| titanic | 0.821883 | 0.790076 | 0.031807 | 0.961300 | True |
+| titanic | 0.755725 | 0.739186 | 0.016540 | 0.978114 | True |
 
 Interpretation:
 - DP stayed within 90% of the FL final-accuracy baseline on 9/12 datasets.

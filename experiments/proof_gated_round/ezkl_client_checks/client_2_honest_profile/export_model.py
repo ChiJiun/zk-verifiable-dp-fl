@@ -14,6 +14,6 @@ torch.onnx.export(
     packed,
     base / "constraint_check.onnx",
     input_names=["packed"],
-    output_names=["checks"],
+    output_names=["checks", "public_q_noisy"],
     opset_version=18,
 )
