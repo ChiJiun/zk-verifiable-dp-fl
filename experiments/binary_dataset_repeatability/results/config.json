@@ -10,7 +10,8 @@
     "ilpd",
     "pc4",
     "blood_transfusion",
-    "kc2"
+    "kc2",
+    "heart_disease"
   ],
   "seeds": [
     42,
@@ -23,5 +24,6 @@
   "lr": 0.01,
   "clients": 3,
   "clip_norm": 1.0,
-  "noise_multiplier": 0.08
+  "noise_multiplier": 0.08,
+  "merge_existing": true
 }

@@ -9,6 +9,7 @@ Datasets:
 - blood_transfusion: samples=748, encoded_features=4
 - breast_cancer_wisconsin: samples=569, encoded_features=30
 - german_credit: samples=1000, encoded_features=61
+- heart_disease: samples=303, encoded_features=25
 - ilpd: samples=583, encoded_features=11
 - kc2: samples=522, encoded_features=21
 - pc4: samples=1458, encoded_features=37
@@ -31,6 +32,7 @@ Results:
 | blood_transfusion | 0.615556 | 0.535555 | 0.080000 | 0.870036 | False |
 | breast_cancer_wisconsin | 0.912281 | 0.891813 | 0.020468 | 0.977564 | True |
 | german_credit | 0.711667 | 0.710000 | 0.001667 | 0.997658 | True |
+| heart_disease | 0.743169 | 0.617486 | 0.125683 | 0.830882 | False |
 | ilpd | 0.609687 | 0.601140 | 0.008547 | 0.985981 | True |
 | kc2 | 0.793651 | 0.784127 | 0.009524 | 0.988000 | True |
 | pc4 | 0.820776 | 0.794521 | 0.026256 | 0.968011 | True |
@@ -40,6 +42,6 @@ Results:
 | titanic | 0.821883 | 0.790076 | 0.031807 | 0.961300 | True |
 
 Interpretation:
-- DP stayed within 90% of the FL final-accuracy baseline on 9/11 datasets.
+- DP stayed within 90% of the FL final-accuracy baseline on 9/12 datasets.
 - This supports that the current DP update prototype is not only tuned to Adult Income, although performance varies by dataset.
 - The next useful step is to repeat the proof-gated VDP/ZK check on selected non-Adult datasets rather than only comparing FL and DP baselines.

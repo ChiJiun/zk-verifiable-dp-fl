@@ -13,6 +13,7 @@
 | C7 | Relation tamper／clip bypass 可拒絕；bounded sign-flip 在合法範圍內仍 100% 通過 | `experiments/multiround_threat_matrix/run_multiround_threat_matrix.py` | `experiments/multiround_threat_matrix/results/threat_summary.csv` | 1,440 decisions 是 policy simulation，不是 1,440 份 actual proofs |
 | C8 | 20% bounded poisoning 下，median／trimmed mean 比 mean 有改善，但未恢復乾淨效用 | `experiments/robust_aggregation/run_robust_aggregation.py` | `experiments/robust_aggregation/results/aggregation_summary.csv`、`robustness_comparisons.csv` | 300/300 malicious updates 仍通過 gate；只涵蓋所測 attack |
 | C9 | 核心矩陣的 row count、pairing、環境與 SHA-256 已稽核 | `experiments/experimental_rigor_audit/analyze_rigor.py` | `experiments/experimental_rigor_audit/results/completeness.json`、`sha256_manifest.csv` | SHA-256 證明檔案一致性，不證明論文主張本身正確 |
+| C10 | 12 個二元表格資料集（含提案承諾的 UCI Heart Disease Cleveland，303 筆）在 `K=3`、5 rounds、`C=1.0`、噪聲 0.08、seeds 42/52/62 下，9 個 DP/FL 保留率 `>= 0.9`；Banknote（0.816067）、Blood Transfusion（0.870036）、Heart Disease（0.830882）未達標 | `experiments/binary_dataset_repeatability/run_multi_dataset_repeats.py`（Heart Disease 以 `--datasets heart_disease --merge-existing` 補跑） | `experiments/binary_dataset_repeatability/results/multi_dataset_summary.csv`、`multi_dataset_runs.csv` | 線性模型、3 seeds、單一 80/20 切分；Heart Disease 測試集僅 61 筆，seed 62 的 DP 最終準確率 0.442623 拉低平均；未調參，sweep 數字不得取代原始結果 |
 
 ## 報告引用規則
 
