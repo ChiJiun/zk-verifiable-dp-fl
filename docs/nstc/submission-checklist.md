@@ -60,7 +60,8 @@
 - [x] Privacy theorem 的 adjacency、profile、rounds、delta 與假設已列明。
 - [x] 大型資料、高維成本、non-IID、攻擊與 robust aggregation 結果均保留。
 - [x] AI 協助揭露文字已準備。
-- [ ] 將長版草稿依上述結構濃縮成唯一送件正文。
-- [ ] 補齊學校格式、圖表編號、中文摘要與參考文獻。
+- [x] 將長版草稿依上述結構濃縮成唯一送件正文（`final-report/final-report.tex`，2026-10-18）。
+- [ ] 填入封面的計畫編號、執行期間、系所與指導教授；依學校格式調整字型與頁邊。
+- [ ] 親自核對 `final-report/ref.bib` 的每一條文獻（見 `experiment-design-audit.md` F5）。
 - [ ] 由作者逐項重跑或抽驗主張—證據表。
 - [ ] 決定 repository 授權並加入 `LICENSE`。
