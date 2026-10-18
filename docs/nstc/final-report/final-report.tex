@@ -235,7 +235,7 @@ S2 要求客戶端對（裁剪、噪聲生成、加噪）提交零知識證明 $
 \end{equation}
 其中 $\lambda$ 為吸收裁剪邊界捨入誤差的固定容差。推薦 profile 為 $s=10000$、$C=1.0$、噪聲倍率 $0.08$、容差 $4201$ ppm（$\lambda=420100$）；此值由誠實案例最大超額 4200 ppm 與篡改案例最小超額 73300 ppm 之間的安全區間決定。
 
-EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，輸出裁剪平方和與關係殘差；證明本身保證檢查模型被正確計算，伺服器再依公開輸出做接受／拒絕決策。這條線在 S1 階段使用\textbf{公開}的確定性種子產生噪聲以便重播驗證，其隱私後果在第~\ref{sec:privacy} 節誠實處理。
+EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，輸出裁剪平方和與關係殘差；證明本身保證檢查模型被正確計算，伺服器再依公開輸出做接受／拒絕決策。這條線在 S1 階段使用\textbf{公開}的確定性種子產生噪聲以便重播驗證，其隱私後果在第~\ref{sec:gap} 節誠實處理。
 
 \subsection{情境綁定秘密隨機性與 Halo2 電路}
 \label{sec:halo2}
@@ -290,8 +290,11 @@ Forest CoverType & 581,012 筆；385／999／1,991 參數 & 大型資料 scaling
 %====================================================================
 \section{結果與討論}
 %====================================================================
+本章依「問題 → 解法 → 邊界 → 泛化」的順序呈現：第~\ref{sec:res-baseline} 與~\ref{sec:res-constraint} 節建立 S0／S1 基準與 S2 約束線；第~\ref{sec:gap} 節說明只驗證約束為何不夠；第~\ref{sec:res-halo2} 與~\ref{sec:privacy} 節給出秘密隨機性電路與其有限隱私預算；第~\ref{sec:threatmatrix} 節界定閘無法涵蓋的投毒邊界；第~\ref{sec:utility} 與~\ref{sec:cost} 節報告跨資料集效用與證明成本；最後是可重現性稽核與綜合討論。
+
 \subsection{ZKML、FL 與 DP 基準（S0／S1）}
-最小 EZKL 流程（PyTorch → ONNX → settings／compile／setup → prove／verify）在 Adult 線性模型上完成實際證明；量化尺度 $8/12/16$ 的量化準確率分別為 $0.841540/0.841335/0.841335$，證明時間 $0.1391/0.1780/0.1499$ 秒，proof 約 11.8 KB。FedAvg 基準（S0）由初始 0.694851 上升至第 2 輪最高 0.845122、第 5 輪 0.842051，平均每輪 1.0171 秒（圖~\ref{fig:s0}）；加入裁剪與種子化噪聲後（S1）最終 0.838776、最佳 0.844201，每輪 1.2266 秒。S0 的意義是提供穩定的比較基準，其侷限是完全無法檢查客戶端是否誠實產生更新；S1 證明在此設定下 DP 更新不會使訓練崩潰，但其噪聲種子是公開的，只能支持重播驗證，不構成正式 DP（第~\ref{sec:privacy} 節）。
+\label{sec:res-baseline}
+最小 EZKL 流程（PyTorch → ONNX → settings／compile／setup → prove／verify）在 Adult 線性模型上完成實際證明；量化尺度 $8/12/16$ 的量化準確率分別為 $0.841540/0.841335/0.841335$，證明時間 $0.1391/0.1780/0.1499$ 秒，proof 約 11.8 KB。FedAvg 基準（S0）由初始 0.694851 上升至第 2 輪最高 0.845122、第 5 輪 0.842051，平均每輪 1.0171 秒（圖~\ref{fig:s0}）；加入裁剪與種子化噪聲後（S1）最終 0.838776、最佳 0.844201，每輪 1.2266 秒。S0 的意義是提供穩定的比較基準，其侷限是完全無法檢查客戶端是否誠實產生更新；S1 證明在此設定下 DP 更新不會使訓練崩潰，但其噪聲種子是公開的，只能支持重播驗證，不構成正式 DP（第~\ref{sec:gap} 節）。
 
 \begin{figure}[H]
 \centering
@@ -321,9 +324,159 @@ Canonical witness + 4201 ppm 容差 & 9/9 & 9/9 & 18/18 \\
 
 以 EZKL 對推薦 profile 建立檢查模型後，誠實案例 verified／clip／relation 全部為 True；篡改含噪更新雖仍能對其算術輸出產生有效證明，但關係殘差平方和為 1.0、relation 為 False，因而被閘拒絕。這區分了「證明檢查模型被正確計算」與「伺服器依公開輸出拒絕更新」兩個步驟。證明閘單輪實驗中 3 個客戶端有 2 個誠實更新被接受、1 個篡改更新被拒絕；把被接受的平均更新回寫全域模型後，下一輪準確率為 0.839697，未經閘的聚合為 0.836831（初始 0.694851）。單輪差距不能推廣為一般優勢，但顯示驗證結果已實際改變聚合結果。
 
-\subsection{跨資料集效用：二元、多類別、大型與非同質}
+\subsection{只驗證約束為何不夠：公開種子、重播與零噪聲}
+\label{sec:gap}
+S2 約束線能拒絕違反裁剪與加性關係的更新，但兩組實驗顯示它還不是可驗證差分隱私。
+
+\textbf{公開種子使隱私預算為無限大。}S1／EZKL 線的 artifact 把確定性噪聲種子列為公開輸入；驗證者可重建 $\qnoise$ 並由 $\qnoisy-\qnoise$ 還原 $\qclip$，因此驗證者視角的隱私預算為 $\eps=\infty$。即使假設改用驗證者不知道的獨立 Gaussian 噪聲，client-level R\'enyi DP 會計~\cite{mironov2017rdp}（$q=1$、replace-one 敏感度 $2C$、10 輪、$\delta=10^{-5}$）顯示現行噪聲倍率 0.08 的條件式 $\eps$ 仍為 3504.357；要達到 $\eps=128/32/8$ 分別需要倍率 $0.531/1.396/4.366$，而三個多類別資料集的保留率隨之跌破 90\%（表~\ref{tab:frontier}、圖~\ref{fig:frontier}）。這說明「可驗證加噪」與「可驗證且不可預測的 DP 隨機性」是兩個不同問題，也說明高效用與有意義隱私預算之間存在實質衝突。
+
+\begin{table}[H]
+\centering\small
+\caption{條件式（秘密 Gaussian 假設）replace-one $\eps$ 與保留率；公開種子現況為 $\eps=\infty$}
+\label{tab:frontier}
+\begin{tabular}{lrrrr}
+\toprule
+資料集 & 噪聲 0.08（$\eps=3504.357$） & $\eps=128$ & $\eps=32$ & $\eps=8$ \\
+\midrule
+Digits & 0.984586 & 0.536609 & 0.252409 & 0.171483 \\
+Iris & 1.000000 & 0.782051 & 0.500000 & 0.384615 \\
+Wine & 1.009524 & 0.876190 & 0.609524 & 0.457143 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\linewidth]{privacy_utility_frontier.png}
+\caption{條件式 client-level RDP 會計下的隱私—效用前緣、效用對原始噪聲倍率，以及目標 $\eps$ 所需噪聲。}
+\label{fig:frontier}
+\end{figure}
+
+\textbf{重播與零噪聲可通過只驗約束的閘。}多輪威脅矩陣（CoverType 100,000 筆、$K=10$、Dirichlet 0.1、3 輪、20\% 攻擊者、3 seeds）對 5 種攻擊比較 ungated、current gate（proof + clip + relation）與 strengthened gate（加情境綁定、重播保護、噪聲生成政策），共 48 條軌跡與 1,440 次客戶端決策。這 1,440 次決策重用前述 actual-EZKL 的 artifact／check contract，是政策模擬，不是 1,440 份實際證明。表~\ref{tab:threat-gap} 列出四種「聲明範圍內或應由情境政策處理」的攻擊；第五種（合法範圍內的符號反轉）屬於閘的保證邊界，留到第~\ref{sec:threatmatrix} 節。圖~\ref{fig:threat} 同時呈現五種攻擊。
+
+\begin{table}[H]
+\centering\small
+\caption{多輪威脅矩陣（一）：約束違規與情境／隨機性缺口（clean DP 最終準確率 0.495314）}
+\label{tab:threat-gap}
+\begin{tabular}{lrrrr}
+\toprule
+ & \multicolumn{2}{c}{惡意更新接受率} & \multicolumn{2}{c}{Clean 保留率} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+攻擊 & Current & Strengthened & Current & Strengthened \\
+\midrule
+Relation tamper & 0.00 & 0.00 & 0.585848 & 0.585848 \\
+Clip bypass & 0.00 & 0.00 & 0.585848 & 0.585848 \\
+Replay & 1.00 & 0.00 & 0.975868 & 0.718373 \\
+Zero noise & 1.00 & 0.00 & 1.197807 & 0.585848 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{threat_matrix.png}
+\caption{多輪威脅矩陣：相對 clean DP 軌跡的最終準確率，以及三種政策下的惡意更新接受率。前四種攻擊對應表~\ref{tab:threat-gap}，bounded sign flip 對應第~\ref{sec:threatmatrix} 節的表~\ref{tab:threat-boundary}。}
+\label{fig:threat}
+\end{figure}
+
+結果支持兩個精確結論。第一，current gate 對其聲明範圍內的 relation／clip 違規在多輪情境下確實拒絕（接受率 0\%）。第二，僅驗證加性關係不足以阻擋重播與零噪聲（接受率 100\%）；加入情境綁定與噪聲生成政策後降為 0\%。零噪聲在 ungated 與 current gate 下 clean 保留率大於 1，因為移除噪聲會提高準確率，所以「準確率上升」不能當作安全訊號；拒絕兩個最大的非同質客戶端後 strengthened 軌跡的 clean 保留率只有 0.585848，揭露安全拒絕與可用資料之間的代價。這兩個缺口（公開種子、情境與噪聲生成未被證明）正是第~\ref{sec:res-halo2} 節 Halo2 電路要解決的問題。
+
+\subsection{解法：秘密隨機性電路與逐更新多輪整合}
+\label{sec:res-halo2}
+針對第~\ref{sec:gap} 節的缺口，第~\ref{sec:halo2} 節的 Halo2 電路把設定期承諾的秘密、commit-before-challenge 情境、Poseidon PRG 與離散取樣一起放入證明關係。電路通過 8 個測試（4 個電路測試：誠實、篡改 $\qnoisy$、輪次情境替換、零噪聲偽造；4 個聯邦整合測試：JSON 位元精確往返、失敗消耗 ticket、資料相依訓練落在電路範圍、模型綁定與 accepted-only 聚合）。10 個獨立 seeds 的實際證明 10/10 通過、proof 雜湊 10/10 唯一，每份 3,840 bytes，證明 $1.8452\pm0.0407$ 秒、驗證 $0.0619\pm0.0091$ 秒、峰值 RSS $246.21\pm0.74$ MiB。GitHub Actions 在 Ubuntu 與 Windows 各自重現 3 份證明與 2 客戶端 × 2 輪軌跡，最近一次（2026-10-05）全部通過。
+
+逐更新多輪整合（表~\ref{tab:multiround}、圖~\ref{fig:multiround}）在 5 seeds × 3 客戶端 × 10 輪上為每一份更新產生實際 IPA 證明，只聚合通過者，並由獨立程序從磁碟重新產生驗證金鑰、重驗全部證明與模型鏈。150/150 證明通過、150/150 磁碟重驗、5/5 模型鏈完整；每份證明以 7 種探測（重播、客戶端／輪次／模型替換、含噪更新篡改、證明位元組損壞、失敗後重試）測試，1,050/1,050 被拒絕，其中重播的原始證明仍能通過密碼學驗證，必須由伺服器 ticket 狀態拒絕。所有誠實回合中，證明閘與相同含噪更新的直接聚合差異為 0（算術一致性檢查）。噪聲帶來的效用代價明顯：證明閘含噪最終準確率 $0.8309\pm0.0989$，無噪聲量化訓練 $0.9441\pm0.0148$；seed 62 僅 0.707，反映 $k=16$ 噪聲對 $\pm1$ 量化 4 維更新的相對幅度很大。
+
+\begin{table}[H]
+\centering\small
+\caption{逐更新 Halo2 多輪整合（3 客戶端 × 10 輪 × 5 seeds；$\pm$ 為以軌跡為單位的 95\% CI 半寬）}
+\label{tab:multiround}
+\begin{tabular}{lr}
+\toprule
+指標 & 實測 \\
+\midrule
+實際產生且通過的證明 & 150/150 \\
+磁碟重驗 & 150/150（唯一雜湊 150） \\
+完整模型鏈 & 5/5 \\
+負面探測拒絕 & 1,050/1,050 \\
+每更新證明／驗證秒數 & $1.9520\pm0.7963$ ／ $0.0450\pm0.0201$ \\
+每軌跡 wall 秒數／峰值 RSS & $73.21\pm28.68$ s ／ $238.51\pm0.65$ MiB \\
+證明閘含噪最終準確率 & $0.8309\pm0.0989$ \\
+無噪聲量化對照準確率 & $0.9441\pm0.0148$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\linewidth]{multiround_halo2.png}
+\caption{4 參數原型：含實際證明的訓練曲線、各 seed 的證明／驗證成本，以及 7 類負面探測的拒絕計數。}
+\label{fig:multiround}
+\end{figure}
+
+一個保留的失敗紀錄：初次 pilot 的 30 份證明即時驗證成功，但模型由 JSON 讀回時一個數值相差 1 ULP（$-6.938893903907228\times10^{-17}$ 變為 $\ldots227\times10^{-17}$），導致精確模型鏈核對失敗。修正方式是啟用 serde\_json 的 float\_roundtrip 並加入位元精確回歸測試，而非放寬模型雜湊容差；修正後同批 pilot 重驗成功，再以全新 OS 隨機材料重跑正式矩陣。
+
+\subsection{保證：固定 profile 的有限 $\eps$}
+\label{sec:privacy}
+對 Halo2 線的理想離散機制，exact PLD 會計得到表~\ref{tab:accountant} 的結果：$d=4$、$k=16$、10 輪（40 次標量組合）、$\delta=10^{-5}$ 時 $\eps\le 28.840669$，不可避免的 $\delta$ 下限 $3.07\times10^{-7}$，域低位元偏差上界 $5.9\times10^{-66}$。$k=32/64$ 可把 $\eps$ 降至 17.98／11.54，但電路位元與約束隨之增加；200 次組合（$k=32$）時 $\eps$ 升至 54.71，顯示輪數與維度仍是隱私瓶頸。另以精確有理數計算的保守基本組合上界為 195.85；它是較鬆的診斷值，與 PLD 的 28.84 不矛盾，也不是實測隱私惡化。若把 $k=16$ 直接延伸到 385 或 1,991 維且每座標仍允許 $\pm1$，$\delta$ 下限（$5.9\times10^{-5}$、$3.1\times10^{-4}$）已超過 $10^{-5}$，無法取得有限 $\eps$；這也是高維 EZKL 線不繼承四維定理的原因。
+
+\begin{table}[H]
+\centering\small
+\caption{Exact centered-binomial PLD 會計（replacement client-level，位移 2，$\delta=10^{-5}$）}
+\label{tab:accountant}
+\begin{tabular}{rrrrr}
+\toprule
+$k$ & 組合次數 & $\eps$ 上界 & $\delta$ 下限 & 域位元偏差 \\
+\midrule
+16 & 40 & 28.840669 & $3.07\times10^{-7}$ & $5.9\times10^{-66}$ \\
+32 & 40 & 17.979538 & $1.41\times10^{-16}$ & $2.5\times10^{-56}$ \\
+64 & 40 & 11.541361 & $1.52\times10^{-35}$ & $4.7\times10^{-37}$ \\
+32 & 200 & 54.709923 & $7.05\times10^{-16}$ & $1.3\times10^{-55}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+必須強調 $\eps=28.84$ 仍是很大的預算，不應描述為強實務隱私；而且此定理只對理想取樣器與固定參與排程成立，完整 transcript（承諾、證明、時間、重試）的 DP 仍需審查 commitment hiding、PRF/ZK simulation 與適應性組合。與第~\ref{sec:gap} 節的 $\eps=\infty$ 對照，本節的結果表示：把隨機性從公開種子改為電路內驗證的秘密來源，是從「可驗證加噪」走到「有限預算的可驗證 DP」的必要步驟，但目前只在固定四維 profile 上完成。
+
+\subsection{邊界：合法範圍內的投毒與穩健聚合}
+\label{sec:threatmatrix}
+即使隨機性電路正確，更新層級的證明仍不驗證更新由指定資料與最佳化器產生。威脅矩陣的第五種攻擊（表~\ref{tab:threat-boundary}）讓攻擊者提交反向並放大至裁剪上界的更新，同時維持合法噪聲：三種政策下惡意接受率均為 100\%，clean 保留率僅 0.179797。這是第~\ref{sec:threat} 節威脅模型所宣告的邊界，實驗證實它確實存在，因此更新層級的 VDP 閘不能被誇大為本地訓練正確性或任意投毒防禦。
+
+\begin{table}[H]
+\centering\small
+\caption{多輪威脅矩陣（二）：合法裁剪範圍內的符號反轉投毒（clean DP 最終準確率 0.495314）}
+\label{tab:threat-boundary}
+\begin{tabular}{lrrr}
+\toprule
+政策 & 惡意更新接受率 & 攻擊下最終準確率 & Clean 保留率 \\
+\midrule
+Ungated & 1.00 & 0.090566 & 0.179797 \\
+Current gate & 1.00 & 0.090566 & 0.179797 \\
+Strengthened gate & 1.00 & 0.090566 & 0.179797 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+作為補償策略，穩健聚合實驗（CoverType 50,000/20,000、$K=10$、$R=5$、Dirichlet 0.5、20\% 攻擊者、10 seeds）在同樣的攻擊下比較均值、座標中位數與截尾平均；3,000/3,000 次決策（含 300/300 惡意更新）全部通過 strengthened gate。相較均值，座標中位數的配對保留率增益為 $0.1988\pm0.0404$、截尾平均 $0.1541\pm0.0306$，two-sided exact sign-flip $p=0.001953$（表~\ref{tab:robust}）。這是本研究唯一可稱「顯著」的比較，但中位數／截尾平均的攻擊下保留率仍只有約 0.59／0.54，不能寫成完全防禦；要徹底關閉這個邊界，需要本地訓練來源證明或更強的 robust-learning 分析。
+
+\begin{table}[H]
+\centering\small
+\caption{20\% 合法範圍投毒下的穩健聚合（10 seeds；$\pm$ 為 95\% CI 半寬）}
+\label{tab:robust}
+\begin{tabular}{lrrrr}
+\toprule
+聚合器 & Clean 準確率 & 攻擊下準確率 & 配對變化 & 攻擊／clean 保留率 \\
+\midrule
+均值 & $0.6012\pm0.0096$ & $0.2327\pm0.0269$ & $-0.3685\pm0.0249$ & $0.3867\pm0.0430$ \\
+座標中位數 & $0.5911\pm0.0100$ & $0.3463\pm0.0376$ & $-0.2448\pm0.0350$ & $0.5855\pm0.0606$ \\
+截尾平均 & $0.5980\pm0.0103$ & $0.3237\pm0.0309$ & $-0.2743\pm0.0275$ & $0.5408\pm0.0480$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{泛化：跨資料集效用（二元、多類別、大型與非同質）}
 \label{sec:utility}
-表~\ref{tab:binary} 顯示 12 個二元資料集在預設參數下 9 個達到 90\% 保留率。Banknote、Blood Transfusion 與 Heart Disease 未達標；參數掃描後 Banknote（10 輪、噪聲 0.04）保留率 0.996970、Blood Transfusion（15 輪、噪聲 0.04）0.988201。依觀察歸因原則，這兩個資料集特徵維度極低（4 維）且基準本身不穩（FL 標準差 0.17／0.11），相同噪聲倍率造成較大的相對干擾，屬參數敏感而非方法不相容；報告保留原始未達標結果而不以調參後數字取代。Heart Disease 為提案承諾的資料集，以相同 pipeline 與預設參數補跑（線性模型，而非提案的 MLP）：303 筆是 12 個資料集中最小者，測試集僅 61 筆，FL 最終準確率 0.743169（標準差 0.033685），DP 為 0.617486（標準差 0.130004），保留率 0.830882；三個 seeds 中 seed 42 與 52 的 DP 準確率為 0.655738 與 0.754098，seed 62 跌至 0.442623，是拉低平均的主因。本研究未對 Heart Disease 另做參數掃描，直接保留此未達標結果。多類別 Iris／Wine／Digits 的保留率分別為 1.000000／1.009524／0.984586，Wine 略大於 1 反映 3 seeds 的隨機波動，不代表噪聲提升準確率。
+以下實驗檢查 S1 的 DP 更新原型是否只對 Adult Income 有效。表~\ref{tab:binary} 顯示 12 個二元資料集在預設參數下 9 個達到 90\% 保留率。Banknote、Blood Transfusion 與 Heart Disease 未達標；參數掃描後 Banknote（10 輪、噪聲 0.04）保留率 0.996970、Blood Transfusion（15 輪、噪聲 0.04）0.988201。依觀察歸因原則，這兩個資料集特徵維度極低（4 維）且基準本身不穩（FL 標準差 0.17／0.11），相同噪聲倍率造成較大的相對干擾，屬參數敏感而非方法不相容；報告保留原始未達標結果而不以調參後數字取代。Heart Disease 為提案承諾的資料集，以相同 pipeline 與預設參數補跑（線性模型，而非提案的 MLP）：303 筆是 12 個資料集中最小者，測試集僅 61 筆，FL 最終準確率 0.743169（標準差 0.033685），DP 為 0.617486（標準差 0.130004），保留率 0.830882；三個 seeds 中 seed 42 與 52 的 DP 準確率為 0.655738 與 0.754098，seed 62 跌至 0.442623，是拉低平均的主因。本研究未對 Heart Disease 另做參數掃描，直接保留此未達標結果。多類別 Iris／Wine／Digits 的保留率分別為 1.000000／1.009524／0.984586，Wine 略大於 1 反映 3 seeds 的隨機波動，不代表噪聲提升準確率。
 
 \begin{table}[H]
 \centering\small
@@ -400,9 +553,9 @@ $K$ & 切分 & Label TV & FL & DP & DP/FL & DP 95\% CI 半寬 \\
 \label{fig:noniid}
 \end{figure}
 
-\subsection{零知識證明成本 scaling}
+\subsection{泛化：零知識證明成本 scaling}
 \label{sec:cost}
-表~\ref{tab:cost} 彙整兩組 EZKL 實際證明：Iris／Wine／Digits 的完整 15／42／650 維更新，以及 CoverType 線性與 MLP 的 385／999／1,991 維更新，每組 3 seeds、誠實案例全數通過。維度由 15 增至 650 時，證明時間為 5.86 倍、電路列數由 138 增至 5,851、proving key 由 0.89 MB 增至 25.18 MB，而驗證時間與 proof 大小幾乎不變（圖~\ref{fig:cost}）。到 1,991 維時單一證明仍在 1.7 秒、峰值 RSS 471 MiB 內。這些數字落在本專題事先設定的綠色門檻內（證明 $\le 10$ 秒、RSS $\le 2$ GiB），但成長趨勢證實審查人指出的 scaling 風險；MLP 僅用於聯邦訓練，EZKL 只證明相同參數數量的更新向量約束，未把前向／反向傳播放入電路。
+表~\ref{tab:cost} 彙整兩組 EZKL 實際證明：Iris／Wine／Digits 的完整 15／42／650 維更新，以及 CoverType 線性與 MLP 的 385／999／1,991 維更新，每組 3 seeds、誠實案例全數通過。維度由 15 增至 650 時，證明時間為 5.86 倍、電路列數由 138 增至 5,851、proving key 由 0.89 MB 增至 25.18 MB，而驗證時間與 proof 大小幾乎不變（圖~\ref{fig:cost}）。到 1,991 維時單一證明仍在 1.7 秒、峰值 RSS 471 MiB 內。這些數字落在本專題事先設定的綠色門檻內（證明 $\le 10$ 秒、RSS $\le 2$ GiB），但成長趨勢證實審查人指出的 scaling 風險；MLP 僅用於聯邦訓練，EZKL 只證明相同參數數量的更新向量約束，未把前向／反向傳播放入電路。這些高維證明屬於約束線，沒有第~\ref{sec:res-halo2} 節的秘密隨機性，也不繼承第~\ref{sec:privacy} 節的有限 $\eps$。
 
 \begin{table}[H]
 \centering\small
@@ -431,141 +584,11 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 
 聯邦訓練壓力測試（CoverType 50,000/20,000、Dirichlet 0.5、5 seeds）完成線性 $10\times3$、$25\times10$、$50\times20$ 與 MLP-16 $25\times10$ 共 40 條實際軌跡；clean 與 clipping + 二項式噪聲兩種模式的最終準確率相近（例如 $50\times20$ 為 $0.6384\pm0.0075$ 對 $0.6352\pm0.0108$）。以 385 維單一證明平均外推，$K=50$、$R=20$ 的 1,000 次更新若全部串行證明約需 0.147 小時、proof 約 11.70 MiB，而訓練本身只需約 27 秒：證明將是回合流程的主要成本，後續需金鑰重用、平行證明、部分參與或證明聚合。此外推值不是實際執行 1,000 份證明。
 
-\subsection{秘密隨機性電路與逐更新多輪整合}
-\label{sec:res-halo2}
-Halo2 電路通過 8 個測試（4 個電路測試：誠實、篡改 $\qnoisy$、輪次情境替換、零噪聲偽造；4 個聯邦整合測試：JSON 位元精確往返、失敗消耗 ticket、資料相依訓練落在電路範圍、模型綁定與 accepted-only 聚合）。10 個獨立 seeds 的實際證明 10/10 通過、proof 雜湊 10/10 唯一，每份 3,840 bytes，證明 $1.8452\pm0.0407$ 秒、驗證 $0.0619\pm0.0091$ 秒、峰值 RSS $246.21\pm0.74$ MiB。GitHub Actions 在 Ubuntu 與 Windows 各自重現 3 份證明與 2 客戶端 × 2 輪軌跡，最近一次（2026-10-05）全部通過。
-
-逐更新多輪整合（表~\ref{tab:multiround}、圖~\ref{fig:multiround}）在 5 seeds × 3 客戶端 × 10 輪上為每一份更新產生實際 IPA 證明，只聚合通過者，並由獨立程序從磁碟重新產生驗證金鑰、重驗全部證明與模型鏈。150/150 證明通過、150/150 磁碟重驗、5/5 模型鏈完整；每份證明以 7 種探測（重播、客戶端／輪次／模型替換、含噪更新篡改、證明位元組損壞、失敗後重試）測試，1,050/1,050 被拒絕，其中重播的原始證明仍能通過密碼學驗證，必須由伺服器 ticket 狀態拒絕。所有誠實回合中，證明閘與相同含噪更新的直接聚合差異為 0（算術一致性檢查）。噪聲帶來的效用代價明顯：證明閘含噪最終準確率 $0.8309\pm0.0989$，無噪聲量化訓練 $0.9441\pm0.0148$；seed 62 僅 0.707，反映 $k=16$ 噪聲對 $\pm1$ 量化 4 維更新的相對幅度很大。
-
-\begin{table}[H]
-\centering\small
-\caption{逐更新 Halo2 多輪整合（3 客戶端 × 10 輪 × 5 seeds；$\pm$ 為以軌跡為單位的 95\% CI 半寬）}
-\label{tab:multiround}
-\begin{tabular}{lr}
-\toprule
-指標 & 實測 \\
-\midrule
-實際產生且通過的證明 & 150/150 \\
-磁碟重驗 & 150/150（唯一雜湊 150） \\
-完整模型鏈 & 5/5 \\
-負面探測拒絕 & 1,050/1,050 \\
-每更新證明／驗證秒數 & $1.9520\pm0.7963$ ／ $0.0450\pm0.0201$ \\
-每軌跡 wall 秒數／峰值 RSS & $73.21\pm28.68$ s ／ $238.51\pm0.65$ MiB \\
-證明閘含噪最終準確率 & $0.8309\pm0.0989$ \\
-無噪聲量化對照準確率 & $0.9441\pm0.0148$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.98\linewidth]{multiround_halo2.png}
-\caption{4 參數原型：含實際證明的訓練曲線、各 seed 的證明／驗證成本，以及 7 類負面探測的拒絕計數。}
-\label{fig:multiround}
-\end{figure}
-
-一個保留的失敗紀錄：初次 pilot 的 30 份證明即時驗證成功，但模型由 JSON 讀回時一個數值相差 1 ULP（$-6.938893903907228\times10^{-17}$ 變為 $\ldots227\times10^{-17}$），導致精確模型鏈核對失敗。修正方式是啟用 serde\_json 的 float\_roundtrip 並加入位元精確回歸測試，而非放寬模型雜湊容差；修正後同批 pilot 重驗成功，再以全新 OS 隨機材料重跑正式矩陣。
-
-\subsection{隱私預算：負面結果與固定 profile 的有限 $\eps$}
-\label{sec:privacy}
-\textbf{公開種子的負面結果。}S1／EZKL 線的 artifact 把確定性噪聲種子列為公開輸入；驗證者可重建 $\qnoise$ 並由 $\qnoisy-\qnoise$ 還原 $\qclip$，因此驗證者視角的隱私預算為 $\eps=\infty$。即使假設改用驗證者不知道的獨立 Gaussian 噪聲，client-level R\'enyi DP 會計~\cite{mironov2017rdp}（$q=1$、replace-one 敏感度 $2C$、10 輪、$\delta=10^{-5}$）顯示現行噪聲倍率 0.08 的條件式 $\eps$ 仍為 3504.357；要達到 $\eps=128/32/8$ 分別需要倍率 $0.531/1.396/4.366$，而三個多類別資料集的保留率隨之跌破 90\%（表~\ref{tab:frontier}、圖~\ref{fig:frontier}）。這說明「可驗證加噪」與「可驗證且不可預測的 DP 隨機性」是兩個不同問題，也說明高效用與有意義隱私預算之間存在實質衝突。
-
-\begin{table}[H]
-\centering\small
-\caption{條件式（秘密 Gaussian 假設）replace-one $\eps$ 與保留率；公開種子現況為 $\eps=\infty$}
-\label{tab:frontier}
-\begin{tabular}{lrrrr}
-\toprule
-資料集 & 噪聲 0.08（$\eps=3504.357$） & $\eps=128$ & $\eps=32$ & $\eps=8$ \\
-\midrule
-Digits & 0.984586 & 0.536609 & 0.252409 & 0.171483 \\
-Iris & 1.000000 & 0.782051 & 0.500000 & 0.384615 \\
-Wine & 1.009524 & 0.876190 & 0.609524 & 0.457143 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.98\linewidth]{privacy_utility_frontier.png}
-\caption{條件式 client-level RDP 會計下的隱私—效用前緣、效用對原始噪聲倍率，以及目標 $\eps$ 所需噪聲。}
-\label{fig:frontier}
-\end{figure}
-
-\textbf{固定 profile 的有限 $\eps$。}對 Halo2 線的理想離散機制，exact PLD 會計得到表~\ref{tab:accountant} 的結果：$d=4$、$k=16$、10 輪（40 次標量組合）、$\delta=10^{-5}$ 時 $\eps\le 28.840669$，不可避免的 $\delta$ 下限 $3.07\times10^{-7}$，域低位元偏差上界 $5.9\times10^{-66}$。$k=32/64$ 可把 $\eps$ 降至 17.98／11.54，但電路位元與約束隨之增加；200 次組合（$k=32$）時 $\eps$ 升至 54.71，顯示輪數與維度仍是隱私瓶頸。另以精確有理數計算的保守基本組合上界為 195.85；它是較鬆的診斷值，與 PLD 的 28.84 不矛盾，也不是實測隱私惡化。若把 $k=16$ 直接延伸到 385 或 1,991 維且每座標仍允許 $\pm1$，$\delta$ 下限（$5.9\times10^{-5}$、$3.1\times10^{-4}$）已超過 $10^{-5}$，無法取得有限 $\eps$；這也是高維 EZKL 線不繼承四維定理的原因。
-
-\begin{table}[H]
-\centering\small
-\caption{Exact centered-binomial PLD 會計（replacement client-level，位移 2，$\delta=10^{-5}$）}
-\label{tab:accountant}
-\begin{tabular}{rrrrr}
-\toprule
-$k$ & 組合次數 & $\eps$ 上界 & $\delta$ 下限 & 域位元偏差 \\
-\midrule
-16 & 40 & 28.840669 & $3.07\times10^{-7}$ & $5.9\times10^{-66}$ \\
-32 & 40 & 17.979538 & $1.41\times10^{-16}$ & $2.5\times10^{-56}$ \\
-64 & 40 & 11.541361 & $1.52\times10^{-35}$ & $4.7\times10^{-37}$ \\
-32 & 200 & 54.709923 & $7.05\times10^{-16}$ & $1.3\times10^{-55}$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-必須強調 $\eps=28.84$ 仍是很大的預算，不應描述為強實務隱私；而且此定理只對理想取樣器與固定參與排程成立，完整 transcript（承諾、證明、時間、重試）的 DP 仍需審查 commitment hiding、PRF/ZK simulation 與適應性組合。
-
-\subsection{多輪威脅矩陣與穩健聚合}
-\label{sec:threatmatrix}
-為界定閘的保證邊界，多輪威脅矩陣（CoverType 100,000 筆、$K=10$、Dirichlet 0.1、3 輪、20\% 攻擊者、3 seeds）對 5 種攻擊比較 ungated、current gate（proof + clip + relation）與 strengthened gate（加情境綁定、重播保護、噪聲生成政策），共 48 條軌跡與 1,440 次客戶端決策（表~\ref{tab:threat}、圖~\ref{fig:threat}）。這 1,440 次決策重用前述 actual-EZKL 的 artifact／check contract，是政策模擬，不是 1,440 份實際證明。
-
-\begin{table}[H]
-\centering\small
-\caption{多輪 proof-gated 威脅矩陣（clean DP 最終準確率 0.495314）}
-\label{tab:threat}
-\begin{tabular}{lrrrr}
-\toprule
- & \multicolumn{2}{c}{惡意更新接受率} & \multicolumn{2}{c}{Clean 保留率} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
-攻擊 & Current & Strengthened & Current & Strengthened \\
-\midrule
-Relation tamper & 0.00 & 0.00 & 0.585848 & 0.585848 \\
-Clip bypass & 0.00 & 0.00 & 0.585848 & 0.585848 \\
-Replay & 1.00 & 0.00 & 0.975868 & 0.718373 \\
-Zero noise & 1.00 & 0.00 & 1.197807 & 0.585848 \\
-Bounded sign flip & 1.00 & 1.00 & 0.179797 & 0.179797 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.95\linewidth]{threat_matrix.png}
-\caption{多輪威脅矩陣：相對 clean DP 軌跡的最終準確率，以及三種政策下的惡意更新接受率。}
-\label{fig:threat}
-\end{figure}
-
-結果支持三個精確結論。第一，current gate 對其聲明範圍內的 relation／clip 違規在多輪情境下確實拒絕（接受率 0\%）。第二，僅驗證加性關係不足以阻擋重播與零噪聲（接受率 100\%）；加入情境與噪聲生成政策後降為 0\%，這正是第~\ref{sec:halo2} 節 Halo2 電路要解決的缺口。第三，合法裁剪範圍內的符號反轉更新在所有政策下 100\% 通過，clean 保留率僅 0.179797：更新層級的 VDP 閘不能被誇大為本地訓練正確性或任意投毒防禦。兩個需要解釋的現象是：zero-noise 與 clip-bypass 在 ungated 下保留率大於 1，因為移除噪聲或放大更新會提高準確率，所以「準確率上升」不能當作安全訊號；拒絕兩個最大的非同質客戶端後 strengthened 軌跡的 clean 保留率只有 0.585848，揭露安全拒絕與可用資料之間的代價。
-
-穩健聚合實驗（CoverType 50,000/20,000、$K=10$、$R=5$、Dirichlet 0.5、20\% 攻擊者、10 seeds）中攻擊者提交反向並放大至裁剪上界的合法更新，3,000/3,000 次決策（含 300/300 惡意更新）全部通過 strengthened gate。相較均值，座標中位數的配對保留率增益為 $0.1988\pm0.0404$、截尾平均 $0.1541\pm0.0306$，two-sided exact sign-flip $p=0.001953$（表~\ref{tab:robust}）。這是本研究唯一可稱「顯著」的比較，但中位數／截尾平均的攻擊下保留率仍只有約 0.59／0.54，不能寫成完全防禦。
-
-\begin{table}[H]
-\centering\small
-\caption{20\% 合法範圍投毒下的穩健聚合（10 seeds；$\pm$ 為 95\% CI 半寬）}
-\label{tab:robust}
-\begin{tabular}{lrrrr}
-\toprule
-聚合器 & Clean 準確率 & 攻擊下準確率 & 配對變化 & 攻擊／clean 保留率 \\
-\midrule
-均值 & $0.6012\pm0.0096$ & $0.2327\pm0.0269$ & $-0.3685\pm0.0249$ & $0.3867\pm0.0430$ \\
-座標中位數 & $0.5911\pm0.0100$ & $0.3463\pm0.0376$ & $-0.2448\pm0.0350$ & $0.5855\pm0.0606$ \\
-截尾平均 & $0.5980\pm0.0103$ & $0.3237\pm0.0309$ & $-0.2743\pm0.0275$ & $0.5408\pm0.0480$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \subsection{可重現性與統計證據強度}
 實驗嚴謹性稽核直接讀取大型資料、非同質與威脅矩陣的原始 CSV：27/27、90/90、48/48 軌跡與 1,440/1,440 決策完整、主鍵無重複、配對完整；程式碼確認先切 train/test、scaler 只在 train fit。33 組配對準確率比較報告 paired difference、95\% CI、Cohen $d_z$、exact permutation $p$ 與 Holm 校正：3 seeds 的最小可能 $p$ 為 0.25、5 seeds 為 0.0625，Holm 校正後 $p<0.05$ 的比較為 0 組。因此除穩健聚合外，本研究的準確率結果定位為描述性 effect、方向與可行性證據，不使用「統計顯著」措辭。核心腳本、原始與摘要 CSV 的 SHA-256、精確套件版本、硬體 manifest、Rust lockfile、Dockerfile 與跨 OS CI 均已保存。
 
 \subsection{綜合討論}
-本研究的證據必須分成兩條線呈現。固定四維 Halo2 線具備真正隱藏的隨機性、逐更新實際證明與有限 profile 的 $\eps$，但資料為合成、維度小、$\eps$ 大、形式化安全不完整。385 至 1,991 維的 EZKL／FL scaling 線有較高維、較多客戶端與輪數的成本與效用壓力測試，但只驗證約束，沒有同等的隱藏隨機性與有限 $\eps$。任何摘要都不應把兩者合併成「高維且 $\eps\le28.84$ 的完整系統」。
+本研究的證據必須分成兩條線呈現。固定四維 Halo2 線（第~\ref{sec:res-halo2}、\ref{sec:privacy} 節）具備真正隱藏的隨機性、逐更新實際證明與有限 profile 的 $\eps$，但資料為合成、維度小、$\eps$ 大、形式化安全不完整。385 至 1,991 維的 EZKL／FL scaling 線（第~\ref{sec:utility}、\ref{sec:cost} 節）有較高維、較多客戶端與輪數的成本與效用壓力測試，但只驗證約束，沒有同等的隱藏隨機性與有限 $\eps$。任何摘要都不應把兩者合併成「高維且 $\eps\le28.84$ 的完整系統」。
 
 從具體到一般：Adult 的單輪證明閘結果是具體案例；17 個資料集、CoverType、非同質與多輪威脅實驗支撐較一般性的說法——constraint-only DP 更新審計在線性模型與本實驗規模上可行且可控制聚合。從一般回到具體：Banknote、Blood Transfusion、Heart Disease、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「constraint-only DP 更新審計與證明閘聚合在本研究範圍內成立，且秘密隨機性已可進入實際電路」；最重要的負面結果是「可審計不等於正式 DP，也不等於完整投毒防禦」。
 
