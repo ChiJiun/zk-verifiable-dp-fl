@@ -6,6 +6,13 @@ the server (``gate.py``) decides acceptance from the proof's public instances on
 vector a client asks to aggregate must equal the proven public ``q_noisy``; artifact check
 flags are never consulted. Keeping a valid proof while submitting a different vector is
 exercised explicitly and must be rejected.
+
+Review fix (2026-10-20): the server alone fixes the circuit, settings, SRS and keys
+(``ezkl_roles.py server-setup``); clients prove with the server's compiled circuit, pk and SRS.
+The server verifies each received proof itself with its fixed vk, settings and SRS, then decodes
+the instances of that same proof (``server_verifier.judge``). Two rejection cases are run with
+real EZKL: a proof made under a client's own circuit and vk, and a proof that fails verification
+while the client's flag claims it verified.
 """
 from __future__ import annotations
 
@@ -13,7 +20,6 @@ import argparse
 import csv
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -24,142 +30,27 @@ BASE_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = BASE_DIR / "results"
 DEMO_DIR = BASE_DIR / "ezkl_client_checks"
 ARTIFACTS_DIR = ROOT_DIR / "constraint_artifacts" / "results" / "artifacts" / "scale_10000"
+FOREIGN_CIRCUIT_DIR = DEMO_DIR / "attack_foreign_circuit"
+FAILED_PROOF_DIR = DEMO_DIR / "attack_failed_proof_true_flag"
 os.chdir(BASE_DIR)
 
 from proof_gated_round.gate import (  # noqa: E402
     RECOMMENDED_POLICY,
-    Decision,
-    PublicStatement,
     aggregate_accepted,
     decide,
     decode_public_statement,
 )
-
-DEFAULT_PYTHON = ["conda", "run", "-n", "zkML", "python"]
-
-
-CHECK_MODEL_CODE = """\
-from __future__ import annotations
-import torch
-import torch.nn as nn
-
-class ConstraintCheckModel(nn.Module):
-    \"\"\"Outputs (checks, public_q_noisy). Both outputs are public in the EZKL circuit, so the
-    proof's statement contains the noisy update that the server will aggregate.\"\"\"
-
-    def forward(self, packed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        q_clipped = packed[:, 0:10]
-        q_noise = packed[:, 10:20]
-        q_noisy = packed[:, 20:30]
-        expected_noisy = q_clipped + q_noise
-        clip_sum_sq = torch.sum(q_clipped * q_clipped, dim=1, keepdim=True)
-        relation_sum_sq = torch.sum((q_noisy - expected_noisy) ** 2, dim=1, keepdim=True)
-        checks = torch.cat([clip_sum_sq, relation_sum_sq], dim=1)
-        return checks, q_noisy
-"""
-
-
-EXPORT_MODEL_CODE = """\
-from __future__ import annotations
-import json
-from pathlib import Path
-import torch
-from constraint_model import ConstraintCheckModel
-
-base = Path(__file__).resolve().parent
-artifact = json.loads((base / "artifact.json").read_text(encoding="utf-8"))
-packed = torch.tensor([artifact["witness"]["q_clipped"] + artifact["witness"]["q_noise"] + artifact["witness"]["q_noisy"]], dtype=torch.float32)
-
-model = ConstraintCheckModel().eval()
-torch.onnx.export(
-    model,
-    packed,
-    base / "constraint_check.onnx",
-    input_names=["packed"],
-    output_names=["checks", "public_q_noisy"],
-    opset_version=18,
+from proof_gated_round.server_verifier import (  # noqa: E402
+    SERVER_DIR,
+    ezkl_python,
+    judge,
+    run_role,
+    with_shifted_public_coordinate,
 )
-"""
-
-
-PIPELINE_CODE = """\
-from __future__ import annotations
-import json
-import time
-from pathlib import Path
-import torch
-import ezkl
-from constraint_model import ConstraintCheckModel
-
-base = Path(__file__).resolve().parent
-artifact = json.loads((base / "artifact.json").read_text(encoding="utf-8"))
-
-packed = torch.tensor([artifact["witness"]["q_clipped"] + artifact["witness"]["q_noise"] + artifact["witness"]["q_noisy"]], dtype=torch.float32)
-model = ConstraintCheckModel().eval()
-checks, public_q_noisy = model(packed)
-
-(base / "input.json").write_text(json.dumps({"input_data": packed.tolist()}), encoding="utf-8")
-
-onnx_path = base / "constraint_check.onnx"
-settings = base / "settings.json"
-compiled = base / "network.ezkl"
-srs = base / "kzg.srs"
-pk = base / "pk.key"
-vk = base / "vk.key"
-witness = base / "witness.json"
-proof = base / "proof.json"
-
-ezkl.gen_settings(str(onnx_path), str(settings))
-ezkl.calibrate_settings(str(base / "input.json"), str(onnx_path), str(settings), "resources")
-ezkl.compile_circuit(str(onnx_path), str(compiled), str(settings))
-logrows = json.loads(settings.read_text(encoding="utf-8"))["run_args"]["logrows"]
-ezkl.gen_srs(str(srs), logrows)
-ezkl.setup(str(compiled), str(vk), str(pk), str(srs))
-ezkl.gen_witness(str(base / "input.json"), str(compiled), str(witness))
-started = time.perf_counter()
-ezkl.prove(str(witness), str(compiled), str(pk), str(proof), "single", str(srs))
-prove_seconds = time.perf_counter() - started
-started = time.perf_counter()
-verified = ezkl.verify(str(proof), str(settings), str(vk), str(srs), False)
-verify_seconds = time.perf_counter() - started
-
-# Informational only: the server never reads these; it decodes proof.json instances.
-summary = {
-    "verified": bool(verified),
-    "prove_seconds": prove_seconds,
-    "verify_seconds": verify_seconds,
-    "float32_model_outputs": {
-        "clip_sum_sq": checks[0][0].item(),
-        "relation_sum_sq": checks[0][1].item(),
-        "public_q_noisy": [int(v) for v in public_q_noisy[0].tolist()],
-    },
-}
-(base / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-print(json.dumps(summary))
-"""
 
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def prepare_case_dir(client_id: int, case_name: str) -> Path:
-    case_dir = DEMO_DIR / f"client_{client_id}_{case_name}"
-    case_dir.mkdir(parents=True, exist_ok=True)
-    (case_dir / "constraint_model.py").write_text(CHECK_MODEL_CODE, encoding="utf-8")
-    (case_dir / "export_model.py").write_text(EXPORT_MODEL_CODE, encoding="utf-8")
-    (case_dir / "pipeline.py").write_text(PIPELINE_CODE, encoding="utf-8")
-    return case_dir
-
-
-def run_prover_python(python_cmd: list[str], script_path: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [*python_cmd, str(script_path)],
-        cwd=script_path.parent,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 def check_artifact_policy(artifact: dict) -> bool:
@@ -173,41 +64,27 @@ def check_artifact_policy(artifact: dict) -> bool:
 
 def run_case(client_id: int, case_name: str, python_cmd: list[str]) -> dict[str, object]:
     source_artifact = ARTIFACTS_DIR / f"client_{client_id}_{case_name}.json"
-    case_dir = prepare_case_dir(client_id, case_name)
+    case_dir = DEMO_DIR / f"client_{client_id}_{case_name}"
+    case_dir.mkdir(parents=True, exist_ok=True)
     (case_dir / "artifact.json").write_text(source_artifact.read_text(encoding="utf-8"), encoding="utf-8")
 
-    export_res = run_prover_python(python_cmd, case_dir / "export_model.py")
-    pipeline_res = run_prover_python(python_cmd, case_dir / "pipeline.py")
-
-    summary_path = case_dir / "summary.json"
-    summary = load_json(summary_path) if summary_path.exists() else {}
+    client = run_role(python_cmd, "client-prove", SERVER_DIR, case_dir / "artifact.json", case_dir)
     artifact = load_json(source_artifact)
     submitted_q_noisy = [int(v) for v in artifact["witness"]["q_noisy"]]
-    verified = bool(summary.get("verified", False))
+    judgement = judge(case_dir / "proof.json", submitted_q_noisy, python_cmd)
 
-    statement: PublicStatement | None = None
-    statement_error = ""
-    if (case_dir / "proof.json").is_file() and (case_dir / "settings.json").is_file():
-        try:
-            statement = decode_public_statement(load_json(case_dir / "proof.json"), load_json(case_dir / "settings.json"))
-        except (ValueError, KeyError) as exc:
-            statement_error = str(exc)
-    if statement is None:
-        statement = PublicStatement(float("inf"), float("inf"), tuple())
-        verified = False
-
-    decision = decide(verified=verified, statement=statement, submitted_q_noisy=submitted_q_noisy)
-
-    # Same valid proof, but the client submits a vector that differs in one coordinate.
+    # Same verified proof, but the client submits a vector that differs in one coordinate.
     shifted = list(submitted_q_noisy)
     if shifted:
         shifted[0] += 1
-    shifted_decision = decide(verified=verified, statement=statement, submitted_q_noisy=shifted)
+    shifted_decision = decide(verified=judgement.verified, statement=judgement.statement, submitted_q_noisy=shifted)
 
+    decision = judgement.decision
     return {
         "client_id": client_id,
         "case_name": case_name,
-        "verified": verified,
+        "verified": judgement.verified,
+        "client_reported_verified": client["client_reported_verified"],
         "clip_ok": decision.clip_ok,
         "relation_ok": decision.relation_ok,
         "binding_ok": decision.binding_ok,
@@ -215,17 +92,64 @@ def run_case(client_id: int, case_name: str, python_cmd: list[str]) -> dict[str,
         "reasons": "; ".join(decision.reasons),
         "shifted_vector_rejected": not shifted_decision.accepted,
         "policy_matches_artifact": check_artifact_policy(artifact),
-        "statement": statement,
+        "statement": judgement.statement,
         "decision": decision,
         "submitted_q_noisy": submitted_q_noisy,
-        "statement_error": statement_error,
-        "summary_path": str(summary_path.relative_to(ROOT_DIR)),
-        "prove_seconds": summary.get("prove_seconds"),
-        "verify_seconds": summary.get("verify_seconds"),
-        "export_returncode": export_res.returncode,
-        "pipeline_returncode": pipeline_res.returncode,
-        "stdout_tail": (pipeline_res.stdout or "").strip()[-300:],
-        "stderr_tail": (pipeline_res.stderr or "").strip()[-300:],
+        "statement_error": judgement.statement_error,
+        "verify_error": judgement.verify_error,
+        "proof_path": (case_dir / "proof.json").relative_to(ROOT_DIR).as_posix(),
+        "prove_seconds": client["prove_seconds"],
+    }
+
+
+def foreign_circuit_case(python_cmd: list[str], tampered_client: int) -> dict[str, object]:
+    """A client that ignores the server's setup: its own circuit (checks always zero), own SRS and vk,
+    proving the tampered client's vector. The proof verifies under its own vk only."""
+    artifact_path = ARTIFACTS_DIR / f"client_{tampered_client}_tampered_noisy_profile.json"
+    client = run_role(python_cmd, "foreign-circuit", artifact_path, FOREIGN_CIRCUIT_DIR)
+    submitted = [int(v) for v in load_json(artifact_path)["witness"]["q_noisy"]]
+    proof_path = FOREIGN_CIRCUIT_DIR / "proof.json"
+
+    own_verified = bool(run_role(python_cmd, "verify", FOREIGN_CIRCUIT_DIR, proof_path)["verified"])
+    own_statement = decode_public_statement(load_json(proof_path), load_json(FOREIGN_CIRCUIT_DIR / "settings.json"))
+    if_client_setup_trusted = decide(verified=own_verified, statement=own_statement, submitted_q_noisy=submitted)
+
+    judgement = judge(proof_path, submitted, python_cmd)
+    return {
+        "case": "foreign_circuit_and_vk",
+        "proof_path": proof_path.relative_to(ROOT_DIR).as_posix(),
+        "client_reported_verified": client["client_reported_verified"],
+        "verified_under_client_vk": own_verified,
+        "accepted_if_client_setup_trusted": if_client_setup_trusted.accepted,
+        "server_verified": judgement.verified,
+        "server_verify_error": judgement.verify_error,
+        "decision": judgement.decision.to_json(),
+    }
+
+
+def failed_proof_true_flag_case(python_cmd: list[str], honest_row: dict[str, object]) -> dict[str, object]:
+    """Take an honest proof, move one public q_noisy coordinate by 1, submit that vector, and claim
+    verified=True in the client's summary. Every decoded check passes, so only ezkl.verify can reject."""
+    honest_proof = load_json(ROOT_DIR / str(honest_row["proof_path"]))
+    forged = with_shifted_public_coordinate(honest_proof, load_json(SERVER_DIR / "settings.json"), coordinate=0)
+    FAILED_PROOF_DIR.mkdir(parents=True, exist_ok=True)
+    proof_path = FAILED_PROOF_DIR / "proof.json"
+    proof_path.write_text(json.dumps(forged), encoding="utf-8")
+    (FAILED_PROOF_DIR / "summary.json").write_text(
+        json.dumps({"client_reported_verified": True, "derived_from": honest_row["proof_path"]}, indent=2),
+        encoding="utf-8",
+    )
+    submitted = list(honest_row["submitted_q_noisy"])
+    submitted[0] += 1
+
+    judgement = judge(proof_path, submitted, python_cmd)
+    return {
+        "case": "failed_proof_with_true_flag",
+        "proof_path": proof_path.relative_to(ROOT_DIR).as_posix(),
+        "client_reported_verified": True,
+        "server_verified": judgement.verified,
+        "server_verify_error": judgement.verify_error,
+        "decision": judgement.decision.to_json(),
     }
 
 
@@ -260,6 +184,7 @@ def write_rows(rows: list[dict[str, object]], output_path: Path) -> None:
         "client_id",
         "case_name",
         "verified",
+        "client_reported_verified",
         "clip_ok",
         "relation_ok",
         "binding_ok",
@@ -267,9 +192,7 @@ def write_rows(rows: list[dict[str, object]], output_path: Path) -> None:
         "shifted_vector_rejected",
         "policy_matches_artifact",
         "reasons",
-        "summary_path",
-        "export_returncode",
-        "pipeline_returncode",
+        "proof_path",
     ]
     with output_path.open("w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -277,32 +200,46 @@ def write_rows(rows: list[dict[str, object]], output_path: Path) -> None:
         writer.writerows([{k: row[k] for k in fieldnames} for row in rows])
 
 
-def write_statements(rows: list[dict[str, object]], swaps: list[dict[str, object]], output_path: Path) -> None:
+def write_statements(
+    rows: list[dict[str, object]],
+    swaps: list[dict[str, object]],
+    adversarial: list[dict[str, object]],
+    server_setup: dict[str, object],
+    output_path: Path,
+) -> None:
     payload = {
         "policy": {
             "scale": RECOMMENDED_POLICY.scale,
             "clip_rhs_bound_sq": RECOMMENDED_POLICY.clip_rhs_bound_sq,
             "slack_abs": RECOMMENDED_POLICY.slack_abs,
         },
+        "server_setup": {
+            "dir": SERVER_DIR.relative_to(ROOT_DIR).as_posix(),
+            "sha256": server_setup["sha256"],
+            "srs": "ezkl.gen_srs test SRS generated by the server (single-machine simulation, not a ceremony SRS)",
+        },
         "clients": [
             {
                 "client_id": row["client_id"],
                 "case_name": row["case_name"],
                 "verified": row["verified"],
+                "client_reported_verified": row["client_reported_verified"],
                 "public_statement": row["statement"].to_json(),
                 "submitted_q_noisy": row["submitted_q_noisy"],
                 "decision": row["decision"].to_json(),
                 "shifted_vector_rejected": row["shifted_vector_rejected"],
                 "statement_error": row["statement_error"],
+                "verify_error": row["verify_error"],
                 "prove_seconds": row["prove_seconds"],
-                "verify_seconds": row["verify_seconds"],
             }
             for row in rows
         ],
         "cross_client_swaps": swaps,
+        "adversarial_cases": adversarial,
         "note": (
-            "Acceptance and the aggregated vector come from proof.json instances decoded by gate.py; "
-            "artifact.json check flags are not used. Vectors under public_statement are the proven ones."
+            "verified is the server's own ezkl.verify on the received proof with the server_setup vk, settings "
+            "and SRS; the proven statement is decoded from the instances of that same proof with the server's "
+            "settings. client_reported_verified is the client's self-check and is not used for any decision."
         ),
     }
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -311,6 +248,7 @@ def write_statements(rows: list[dict[str, object]], swaps: list[dict[str, object
 def write_summary(
     rows: list[dict[str, object]],
     swaps: list[dict[str, object]],
+    adversarial: list[dict[str, object]],
     output_path: Path,
     tampered_client: int,
     accepted_average: list[float],
@@ -322,6 +260,8 @@ def write_summary(
     lines = [
         "# proof-gated aggregation Proof-Gated Round Summary",
         "",
+        "- Verification: the server runs ezkl.verify itself with its fixed vk, settings and test SRS",
+        "  (ezkl_client_checks/server_setup), then decodes the instances of that same proof.",
         f"- Tampered client: {tampered_client}",
         f"- Accepted proofs: {len(accepted_rows)}/{len(rows)}",
         f"- Rejected proofs: {len(rejected_rows)}/{len(rows)}",
@@ -343,19 +283,39 @@ def write_summary(
         f"relation_ok={row['relation_ok']}, binding_ok={row['binding_ok']} ({row['reasons']})"
         for row in rejected_rows
     )
+    lines.extend(["", "Adversarial cases (real EZKL):"])
+    for case in adversarial:
+        decision = case["decision"]
+        extra = ""
+        if "verified_under_client_vk" in case:
+            extra = (
+                f", verified_under_client_vk={case['verified_under_client_vk']}, "
+                f"accepted_if_client_setup_trusted={case['accepted_if_client_setup_trusted']}"
+            )
+        lines.append(
+            f"- {case['case']}: client_reported_verified={case['client_reported_verified']}{extra}, "
+            f"server_verified={case['server_verified']}, clip_ok={decision['clip_ok']}, "
+            f"relation_ok={decision['relation_ok']}, binding_ok={decision['binding_ok']}, accepted={decision['accepted']}"
+        )
     lines.extend(
         [
             "",
             "Interpretation:",
             "- This experiment runs actual EZKL-backed client checks before aggregation.",
-            "- The proof statement is (clip_sum_sq, relation_sum_sq, q_noisy); the server decodes it from proof.json",
-            "  instances, re-derives clip/relation from the recommended profile and only aggregates the proven q_noisy.",
+            "- The server alone fixes the circuit, settings, SRS and keys; clients prove with the server's",
+            "  compiled circuit, pk and SRS. The SRS is an ezkl.gen_srs test SRS, so this is a single-machine",
+            "  simulation that trusts the server's setup, not a deployment with a ceremony SRS.",
+            "- The proof statement is (clip_sum_sq, relation_sum_sq, q_noisy); the server decodes it from the",
+            "  instances of the proof it verified, re-derives clip/relation from the recommended profile and only",
+            "  aggregates the proven q_noisy.",
             "- A submitted vector that differs from the proven q_noisy is rejected even though the proof verifies,",
             "  so a valid proof cannot be reused to aggregate a different update.",
+            "- A proof made under a client's own circuit and vk, or one that fails verification, is rejected",
+            "  whatever the client reports about it.",
             "- Local training provenance is still outside the statement (see the threat model).",
         ]
     )
-    output_path.write_text("\n".join(lines), encoding="utf-8")
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def write_aggregate(output_path: Path, accepted_average: list[float]) -> None:
@@ -373,16 +333,14 @@ def main() -> int:
         "environment variable, else `conda run -n zkML python`).",
     )
     args = parser.parse_args()
-    if args.python:
-        python_cmd = list(args.python)
-    elif os.environ.get("PROOF_GATED_PYTHON"):
-        python_cmd = os.environ["PROOF_GATED_PYTHON"].split()
-    else:
-        python_cmd = DEFAULT_PYTHON
+    python_cmd = ezkl_python(args.python)
 
     print("=" * 60)
     print("proof-gated aggregation - Proof-Gated Round")
     print("=" * 60)
+
+    print(f"Server setup -> {SERVER_DIR.relative_to(ROOT_DIR)}")
+    server_setup = run_role(python_cmd, "server-setup", SERVER_DIR)
 
     rows: list[dict[str, object]] = []
     for client_id in range(3):
@@ -390,17 +348,23 @@ def main() -> int:
         print(f"Running client {client_id} -> {case_name}")
         row = run_case(client_id, case_name, python_cmd)
         print(f"  verified={row['verified']} accepted={row['accepted']} reasons={row['reasons'] or '-'}")
-        if row["pipeline_returncode"] != 0:
-            print(f"  pipeline stderr tail: {row['stderr_tail']}")
         rows.append(row)
+
+    honest_row = next(row for row in rows if row["accepted"])
+    adversarial = [
+        foreign_circuit_case(python_cmd, args.tampered_client),
+        failed_proof_true_flag_case(python_cmd, honest_row),
+    ]
+    for case in adversarial:
+        print(f"Adversarial {case['case']}: server_verified={case['server_verified']} accepted={case['decision']['accepted']}")
 
     swaps = cross_client_swaps(rows)
     accepted_average = aggregate_accepted([row["statement"] for row in rows], [row["decision"] for row in rows])
 
     write_rows(rows, RESULTS_DIR / "proof_gated_round.csv")
-    write_statements(rows, swaps, RESULTS_DIR / "statements.json")
+    write_statements(rows, swaps, adversarial, server_setup, RESULTS_DIR / "statements.json")
     write_aggregate(RESULTS_DIR / "accepted_aggregate.json", accepted_average)
-    write_summary(rows, swaps, RESULTS_DIR / "summary.md", args.tampered_client, accepted_average)
+    write_summary(rows, swaps, adversarial, RESULTS_DIR / "summary.md", args.tampered_client, accepted_average)
     print(f"Results saved to: {RESULTS_DIR}")
     return 0
 

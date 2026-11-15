@@ -1,21 +1,4 @@
 {
-  "verified": true,
-  "prove_seconds": 0.07801170001039281,
-  "verify_seconds": 0.028373300010571256,
-  "float32_model_outputs": {
-    "clip_sum_sq": 98890816.0,
-    "relation_sum_sq": 0.0,
-    "public_q_noisy": [
-      279,
-      448,
-      2351,
-      -2004,
-      3393,
-      42,
-      859,
-      -1775,
-      550,
-      -9720
-    ]
-  }
+  "prove_seconds": 0.08553419995587319,
+  "client_reported_verified": true
 }

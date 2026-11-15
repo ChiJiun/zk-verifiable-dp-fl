@@ -108,7 +108,7 @@
 \addcontentsline{toc}{section}{中文摘要}
 聯邦學習（Federated Learning, FL）讓多個客戶端在不集中原始資料的情況下共同訓練模型，而差分隱私（Differential Privacy, DP）常被用來限制單一客戶端更新對模型的影響。然而伺服器通常只能「相信」客戶端確實執行了裁剪與加噪，無法審計。本計畫提出並實作一套以零知識機器學習（ZKML）審計 DP 更新的可驗證差分隱私聯邦學習（VDP-FL）原型，分三個系統層級推進：S0 為 FedAvg 基準、S1 加入裁剪與加噪、S2 將 DP 更新的核心條件轉為零知識可驗證約束並以驗證結果決定聚合。
 
-主要成果如下。第一，本研究發現浮點 DP 條件不能直接搬入整數電路（誠實案例的加性關係在量化後 0/9 精確成立），並提出 canonical quantized witness 與固定容差策略；推薦設定下誠實案例 9/9 通過、篡改案例 18/18 被拒絕，且 EZKL 實際證明在 15 至 1,991 維完整更新向量上均能拒絕僅偏移 1 個量化單位的篡改。第二，本研究把客戶端秘密隨機性、commit-before-challenge 情境綁定、Poseidon 偽隨機產生器、離散二項式噪聲取樣、裁剪與加性關係整合進真正的 Zcash Halo2 電路，並以 3 客戶端 × 10 輪 × 5 種子完成 150/150 份逐更新證明、150/150 份磁碟重驗與 1,050/1,050 次負面探測拒絕。第三，對固定 $d=4$、$k=16$、10 輪的理想離散噪聲機制建立 exact privacy-loss-distribution 會計，會計結果為 replacement client-level 的 $\eps$ 約 28.84（$\delta=10^{-5}$）；這是理想機制的會計值，實際協定（承諾、挑戰、證明與重試的完整 transcript）的 computational-DP 證明尚待完成。第四，效用與成本評估涵蓋 17 個資料集、581,012 筆 Forest CoverType、最多 50 個客戶端與 20 輪、IID 與 Dirichlet 非同質切分；12 個二元資料集（含提案承諾的 UCI Heart Disease）中 9 個在預設參數下維持 90\% 以上 DP/FL 準確率保留率。
+主要成果如下。第一，本研究發現浮點 DP 條件不能直接搬入整數電路（誠實案例的加性關係在量化後 0/9 精確成立），並提出 canonical quantized witness 與固定容差策略；推薦設定下誠實案例 9/9 通過、篡改案例 18/18 被拒絕；在 Adult 單輪證明閘中，伺服器以自己固定的 verifying key 驗證 EZKL 實際證明，並依證明公開的 $\qnoisy$ 與檢查值拒絕僅偏移 1 個量化單位的篡改；15 至 1,991 維完整更新向量的 EZKL 實驗則只量測誠實案例的證明成本。第二，本研究把客戶端秘密隨機性、commit-before-challenge 情境綁定、Poseidon 偽隨機產生器、離散二項式噪聲取樣、裁剪與加性關係整合進真正的 Zcash Halo2 電路，並以 3 客戶端 × 10 輪 × 5 種子完成 150/150 份逐更新證明、150/150 份磁碟重驗與 1,050/1,050 次負面探測拒絕。第三，對固定 $d=4$、$k=16$、10 輪的理想離散噪聲機制建立 exact privacy-loss-distribution 會計，會計結果為 replacement client-level 的 $\eps$ 約 28.84（$\delta=10^{-5}$）；這是理想機制的會計值，實際協定（承諾、挑戰、證明與重試的完整 transcript）的 computational-DP 證明尚待完成。第四，效用與成本評估涵蓋 17 個資料集、581,012 筆 Forest CoverType、最多 50 個客戶端與 20 輪、IID 與 Dirichlet 非同質切分；12 個二元資料集（含提案承諾的 UCI Heart Disease）中 9 個在預設參數下維持 90\% 以上 DP/FL 準確率保留率。
 
 本研究同時保留重要負面結果：公開種子的舊機制在驗證者視角下 $\eps=\infty$；僅驗證加性關係不足以阻擋重播與零噪聲提交；在合法裁剪範圍內的符號反轉投毒 300/300 通過證明閘，座標中位數與截尾平均只能部分緩解。因此本研究主張的是「固定 profile 下具秘密隨機性、且其理想機制已完成有限預算會計的 DP 更新審計原型」，而非已證明完整 DP 的實際協定、本地訓練正確性證明或大規模部署系統。
 
@@ -119,7 +119,7 @@
 \addcontentsline{toc}{section}{Abstract}
 Federated learning (FL) trains a model without centralizing raw data, and differential privacy (DP) bounds the influence of any single client update. In practice, however, the server must simply trust that each client clipped and noised its update as prescribed. This project designs and implements a verifiable differentially private federated learning (VDP-FL) prototype that audits DP updates with zero-knowledge machine learning (ZKML). The work proceeds through three system levels: S0 (FedAvg baseline), S1 (clipping and noise injection), and S2 (DP-update conditions encoded as zero-knowledge constraints whose verification outcome gates aggregation).
 
-The main results are as follows. First, floating-point DP conditions cannot be moved directly into integer circuits (the honest additive relation held exactly in 0/9 quantized cases); we propose a canonical quantized witness with a fixed slack policy, under which 9/9 honest and 18/18 tampered profiles are classified correctly, and actual EZKL proofs over full update vectors of 15 to 1,991 dimensions reject tampering by a single quantization unit. Second, we integrate a setup-bound client secret, commit-before-challenge context binding, a Poseidon pseudorandom generator, a centered-binomial sampler, clipping, and the additive-noise relation into a real Zcash Halo2 circuit, and complete 150/150 per-update proofs, 150/150 disk re-verifications, and 1,050/1,050 rejected negative probes over 3 clients, 10 rounds, and 5 seeds. Third, an exact privacy-loss-distribution accountant for the ideal fixed $d=4$, $k=16$, 10-round discrete-noise mechanism gives replacement client-level $\eps \approx 28.84$ at $\delta=10^{-5}$; this is an accounting result for the ideal mechanism, and a complete computational-DP proof for the deployed protocol (the full transcript of commitments, challenges, proofs and retries) remains open. Fourth, utility and cost are evaluated on 17 datasets, the 581,012-row Forest CoverType dataset, up to 50 clients and 20 rounds, and IID/Dirichlet partitions; 9 of 12 binary datasets (including the UCI Heart Disease dataset promised in the proposal) retain at least 90\% of FL accuracy under default DP settings.
+The main results are as follows. First, floating-point DP conditions cannot be moved directly into integer circuits (the honest additive relation held exactly in 0/9 quantized cases); we propose a canonical quantized witness with a fixed slack policy, under which 9/9 honest and 18/18 tampered profiles are classified correctly, and in the single-round Adult proof gate the server verifies actual EZKL proofs with its own fixed verifying key and rejects, from the proven public $\qnoisy$ and check values, an update tampered by a single quantization unit; the EZKL runs over full update vectors of 15 to 1,991 dimensions measure proving cost on honest cases only. Second, we integrate a setup-bound client secret, commit-before-challenge context binding, a Poseidon pseudorandom generator, a centered-binomial sampler, clipping, and the additive-noise relation into a real Zcash Halo2 circuit, and complete 150/150 per-update proofs, 150/150 disk re-verifications, and 1,050/1,050 rejected negative probes over 3 clients, 10 rounds, and 5 seeds. Third, an exact privacy-loss-distribution accountant for the ideal fixed $d=4$, $k=16$, 10-round discrete-noise mechanism gives replacement client-level $\eps \approx 28.84$ at $\delta=10^{-5}$; this is an accounting result for the ideal mechanism, and a complete computational-DP proof for the deployed protocol (the full transcript of commitments, challenges, proofs and retries) remains open. Fourth, utility and cost are evaluated on 17 datasets, the 581,012-row Forest CoverType dataset, up to 50 clients and 20 rounds, and IID/Dirichlet partitions; 9 of 12 binary datasets (including the UCI Heart Disease dataset promised in the proposal) retain at least 90\% of FL accuracy under default DP settings.
 
 Negative results are retained: the earlier public-seed mechanism has $\eps=\infty$ from the verifier's view; verifying the additive relation alone does not block replay or zero-noise submissions; and in-range sign-flip poisoning passes the proof gate in 300/300 cases, with coordinate median and trimmed mean providing only partial mitigation. The project therefore claims a fixed-profile DP-update audit prototype with hidden randomness whose ideal mechanism has a finite accounted privacy budget, not a protocol with a completed DP proof, full local-training correctness, or a production-scale system.
 
@@ -159,7 +159,7 @@ Negative results are retained: the earlier public-seed mechanism has $\eps=\inft
 聯邦學習的威脅主要分為推論攻擊與投毒攻擊。推論攻擊方面，DLG~\cite{zhu2019deep} 證明可由共享梯度最佳化重建原始影像或文字，Geiping 等人~\cite{geiping2020inverting} 進一步指出大批次下梯度的幾何性質仍會洩漏輸入特徵。投毒攻擊方面，Tolpegin 等人~\cite{tolpegin2020poisoning} 展示標籤翻轉即可破壞全域模型；座標中位數與截尾平均等 Byzantine-robust 聚合~\cite{yin2018byzantine} 能在統計上剔除離群更新，但在非同質資料下效果有限，且不能從根本上驗證客戶端計算過程。這些方法的共同侷限是：它們只看更新的「值」，不看更新「如何產生」。
 
 \subsection{差分隱私的審計難題與可驗證差分隱私}
-差分隱私的保證不來自輸出本身，而建立在「機制確實被正確執行」的前提上。以成員推論為基礎的事後審計早期需要數千至數百萬次訓練；Nasr 等人~\cite{nasr2023tight} 的主要貢獻正是把緊審計所需的訓練降到兩次（在審計者可觀察所有中間更新的設定下）。但即使成本已大幅下降，審計得到的仍是對隱私損失的統計估計（下界），而不是對某一次執行是否正確加噪的確定性判斷，也無法在單輪、單一客戶端的粒度上做出接受／拒絕決策。安全聚合~\cite{bonawitz2017secagg} 能避免伺服器看到個別更新，但同樣不能保證客戶端有加噪。
+差分隱私的保證不來自輸出本身，而建立在「機制確實被正確執行」的前提上。以成員推論為基礎的事後審計早期需要數千至數百萬次訓練；Nasr 等人~\cite{nasr2023tight} 的主要貢獻之一是把緊審計所需的訓練降到兩次（在審計者可觀察每步 DP-SGD 更新並插入梯度金絲雀的白箱設定下）。但即使成本已大幅下降，審計得到的仍是對隱私損失的統計估計（下界），而不是對某一次執行是否正確加噪的確定性判斷，也無法在單輪、單一客戶端的粒度上做出接受／拒絕決策。安全聚合~\cite{bonawitz2017secagg} 能避免伺服器看到個別更新，但同樣不能保證客戶端有加噪。
 
 可驗證差分隱私（Verifiable DP）因此成為新的研究方向：Biswas 與 Cormode~\cite{biswas2022verifiable} 以互動式證明驗證 DP 計數；Bontekoe 等人~\cite{bontekoe2025verifiable} 在本地與 shuffle 模型中結合輸入真實性；Wei 等人~\cite{wei2025verifiable} 提出基於 zk-SNARK 的可驗證拉普拉斯機制；Sun 與 He~\cite{sun2025vddp} 定義 client-server-verifier 設定下的 VDDP；Kwon 與 Fan~\cite{kwon2025verifying} 驗證中位數估計的指數機制。這些工作的共同精神是把「對人的統計信任」轉為「對數學的密碼學確定性」，但多數針對單次查詢或單一機制，較少把噪聲生成、裁剪與多輪聯邦聚合綁在同一證明關係內。本研究補的正是這一段。
 
@@ -238,7 +238,7 @@ S2 要求客戶端對（裁剪、噪聲生成、加噪）提交零知識證明 $
 \end{equation}
 其中 $\lambda$ 為吸收裁剪邊界捨入誤差的固定容差。推薦 profile 為 $s=10000$、$C=1.0$、噪聲倍率 $0.08$、容差 $4201$ ppm（$\lambda=420100$）；此值由誠實案例最大超額 4200 ppm 與篡改案例最小超額 73300 ppm 之間的安全區間決定。
 
-EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，公開輸出為裁剪平方和、關係殘差與 $\qnoisy$ 本身；證明保證檢查模型被正確計算，伺服器則只由證明的公開 instance 解碼這三者、以固定 profile 重算接受條件，並要求客戶端提交聚合的向量與證明中公開的 $\qnoisy$ 逐座標相同。這項綁定是依審查意見補上的：先前版本把 $\qnoisy$ 放在私有輸入、由 artifact 讀取向量與檢查旗標，無法證明「被聚合的向量就是被證明的向量」（第~\ref{sec:res-constraint} 節）。這條線在 S1 階段使用\textbf{公開}的確定性種子產生噪聲以便重播驗證，其隱私後果在第~\ref{sec:gap} 節誠實處理。
+EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，公開輸出為裁剪平方和、關係殘差與 $\qnoisy$ 本身；證明保證檢查模型被正確計算，伺服器則只由證明的公開 instance 解碼這三者、以固定 profile 重算接受條件，並要求客戶端提交聚合的向量與證明中公開的 $\qnoisy$ 逐座標相同。這項綁定是依審查意見補上的：先前版本把 $\qnoisy$ 放在私有輸入、由 artifact 讀取向量與檢查旗標，無法證明「被聚合的向量就是被證明的向量」（第~\ref{sec:res-constraint} 節）。伺服器另以自己固定的 verifying key、settings 與 SRS，對收到的同一份 proof 呼叫 \texttt{ezkl.verify}，通過後才解碼該 proof 的 instance；客戶端只取得伺服器編譯的電路、proving key 與 SRS，客戶端自報的驗證旗標不被讀取。此設計的信任假設是伺服器的 setup 可信：本實驗以單機模擬三方，SRS 由 \texttt{ezkl.gen\_srs} 產生，屬測試用而非公開 ceremony 的 SRS；部署時須改用可信 SRS，並公開 verifying key 與 settings 的雜湊。這條線在 S1 階段使用\textbf{公開}的確定性種子產生噪聲以便重播驗證，其隱私後果在第~\ref{sec:gap} 節誠實處理。
 
 \subsection{情境綁定秘密隨機性與 Halo2 電路}
 \label{sec:halo2}
@@ -260,7 +260,7 @@ EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，公開輸
 \begin{equation}
 \delta_s(\eps)=\sum_z\max\bigl(p(z)-e^{\eps}p(z-s),\,0\bigr),\qquad s=2,
 \end{equation}
-其中 $p$ 為 centered-binomial 機率質量函數。有限支撐使得 $p(z)>0$ 而 $p(z-s)=0$ 的項產生不可避免的 $\delta$ 下限。會計器依 Koskela 等人~\cite{koskela2021tight} 的 privacy-loss-distribution 方法：把有限隱私損失向上取整到格點、以 FFT 做 $d\times T=40$ 次卷積、把支撐不匹配的質量計入無限損失，並加入數值誤差保護與域低位元取樣的統計距離上界。實際電路以 keyed Poseidon 取代理想均勻位元，因此嚴格表述是：在 Poseidon 構造對唯一輸入為安全 PRF 的假設下，對多項式時間驗證者為 computational $(\eps,\delta+\mathrm{Adv}_{\mathrm{PRF}})$-DP。此結果是理想機制的會計值，不涵蓋 add/remove 相鄰、selective abort、record-level DP-SGD；實際協定完整 transcript 的 computational-DP 證明尚待完成（第~\ref{sec:privacy} 節），高維模型的適用條件亦在該節說明。
+其中 $p$ 為 centered-binomial 機率質量函數。有限支撐使得 $p(z)>0$ 而 $p(z-s)=0$ 的項產生不可避免的 $\delta$ 下限。會計器依 Koskela 等人~\cite{koskela2021tight} 的 privacy-loss-distribution 方法：把有限隱私損失向上取整到格點、以 FFT 做 $d\times T=40$ 次卷積、把支撐不匹配的質量計入無限損失，並加入數值誤差保護與域低位元取樣的統計距離上界。實際電路以 keyed Poseidon 取代理想均勻位元。若能在 Poseidon 構造對唯一輸入為安全 PRF 的假設下完成 PRF hybrid 與 transcript 模擬，預期可得對多項式時間驗證者的 computational DP，其 $\delta$ 項需加上 $(1+e^{\eps})$ 倍的 PRF 優勢，即 $\delta+(1+e^{\eps})\cdot\mathrm{Adv}_{\mathrm{PRF}}$；$\eps\approx28.84$ 時 $e^{\eps}\approx3.35\times10^{12}$，所以 $\mathrm{Adv}_{\mathrm{PRF}}$ 須遠小於 $3\times10^{-18}$ 才不影響 $\delta=10^{-5}$。這是待證的推論，不是本研究已完成的結果。此結果是理想機制的會計值，不涵蓋 add/remove 相鄰、selective abort、record-level DP-SGD；實際協定完整 transcript 的 computational-DP 證明尚待完成（第~\ref{sec:privacy} 節），高維模型的適用條件亦在該節說明。
 
 \subsection{證明閘聚合與穩健聚合}
 伺服器只在證明驗證、裁剪檢查、關係檢查、情境與重播檢查同時通過時接受更新；被接受的更新以均勻權重平均並回寫全域模型，下一輪的模型摘要再綁入情境。針對合法範圍內的投毒，另比較均值、座標中位數與 20\% 截尾平均~\cite{yin2018byzantine}。
@@ -325,7 +325,7 @@ Canonical witness + 4201 ppm 容差 & 9/9 & 9/9 & 18/18 \\
 \end{tabular}
 \end{table}
 
-以 EZKL 對推薦 profile 建立檢查模型後，誠實案例 verified／clip／relation 全部為 True；篡改含噪更新雖仍能對其算術輸出產生有效證明，但關係殘差平方和為 1.0、relation 為 False，因而被閘拒絕。這區分了「證明檢查模型被正確計算」與「伺服器依公開輸出拒絕更新」兩個步驟。審查指出先前的證明閘尚有缺口：$\qnoisy$ 在私有輸入，公開輸出只有兩個檢查值，而伺服器聚合時從 artifact 讀取向量並沿用 artifact 的檢查旗標，因此無法證明被聚合的向量就是被證明的向量。修正後的檢查模型把 $\qnoisy$ 列為公開輸出，伺服器只由證明的公開 instance 解碼 $(\sum\qclip^2,\ \text{殘差},\ \qnoisy)$、以固定 profile 重算接受條件，並要求提交向量與證明中的 $\qnoisy$ 逐座標相同；以 EZKL 10.2.7 重跑三個客戶端後，解碼值與 witness 完全一致（誠實客戶端 $\sum\qclip^2$ 為 98,890,825 與 100,010,941、殘差 0；篡改客戶端殘差 1），而「保留合法證明、替換提交向量」的攻擊被拒絕 6/6（兩個被接受證明各測單座標偏移 1 次、他人向量 2 次），單元測試另覆蓋長度不符與偽造旗標的情形。證明閘單輪實驗中 3 個客戶端有 2 個誠實更新被接受、1 個篡改更新被拒絕；把被接受的平均更新回寫全域模型後，下一輪準確率為 0.839697，未經閘的聚合為 0.836831（初始 0.694851）。單輪差距不能推廣為一般優勢，但顯示驗證結果已實際改變聚合結果。
+以 EZKL 對推薦 profile 建立檢查模型後，誠實案例 verified／clip／relation 全部為 True；篡改含噪更新雖仍能對其算術輸出產生有效證明，但關係殘差平方和為 1.0、relation 為 False，因而被閘拒絕。這區分了「證明檢查模型被正確計算」與「伺服器依公開輸出拒絕更新」兩個步驟。審查指出先前的證明閘尚有缺口：$\qnoisy$ 在私有輸入，公開輸出只有兩個檢查值，而伺服器聚合時從 artifact 讀取向量並沿用 artifact 的檢查旗標，因此無法證明被聚合的向量就是被證明的向量。修正後的檢查模型把 $\qnoisy$ 列為公開輸出，伺服器只由證明的公開 instance 解碼 $(\sum\qclip^2,\ \text{殘差},\ \qnoisy)$、以固定 profile 重算接受條件，並要求提交向量與證明中的 $\qnoisy$ 逐座標相同；以 EZKL 10.2.7 重跑三個客戶端後，解碼值與 witness 完全一致（誠實客戶端 $\sum\qclip^2$ 為 98,890,825 與 100,010,941、殘差 0；篡改客戶端殘差 1），而「保留合法證明、替換提交向量」的攻擊被拒絕 6/6（兩個被接受證明各測單座標偏移 1 次、他人向量 2 次），單元測試另覆蓋長度不符的情形。第二輪審查再指出兩個缺口：伺服器的 verified 讀自客戶端寫的摘要檔，且 verifying key、settings 與 SRS 由各客戶端自行產生，因此客戶端可用自選電路（檢查值恆為 0）配自己的 verifying key 取得「驗證通過」。修正後由伺服器單方產生電路、settings、測試用 SRS 與金鑰，並以自己的 verifying key 對收到的同一份 proof 呼叫 \texttt{ezkl.verify} 後才解碼。以 EZKL 10.2.7 重跑後，兩個實際執行的拒絕案例都被拒絕：(1) 客戶端自選電路與 verifying key，其 proof 在客戶端自己的 key 下驗證通過、若伺服器信任客戶端設定就會被接受，但在伺服器的 key 下驗證失敗；(2) 把誠實 proof 公開的 $\qnoisy$ 改動 1 個單位並宣稱已驗證，解碼後裁剪、關係與綁定檢查全部通過，只有伺服器自己的驗證會拒絕。兩個案例另寫成單元測試；把伺服器改為信任客戶端旗標後，這兩個測試都會失敗。上述結果在第~\ref{sec:canonical} 節所述的伺服器 setup 可信假設下成立。證明閘單輪實驗中 3 個客戶端有 2 個誠實更新被接受、1 個篡改更新被拒絕；把被接受的平均更新回寫全域模型後，下一輪準確率為 0.839697，未經閘的聚合為 0.836831（初始 0.694851）。單輪差距不能推廣為一般優勢，但顯示驗證結果已實際改變聚合結果。
 
 \subsection{只驗證約束為何不夠：公開種子、重播與零噪聲}
 \label{sec:gap}
@@ -386,7 +386,7 @@ Zero noise & 1.00 & 0.00 & 1.197807 & 0.585848 \\
 
 \subsection{解法：秘密隨機性電路與逐更新多輪整合}
 \label{sec:res-halo2}
-針對第~\ref{sec:gap} 節的缺口，第~\ref{sec:halo2} 節的 Halo2 電路把設定期承諾的秘密、commit-before-challenge 情境、Poseidon PRG 與離散取樣一起放入證明關係。電路通過 8 個測試（4 個電路測試：誠實、篡改 $\qnoisy$、輪次情境替換、零噪聲偽造；4 個聯邦整合測試：JSON 位元精確往返、失敗消耗 ticket、資料相依訓練落在電路範圍、模型綁定與 accepted-only 聚合）。10 個獨立 seeds 的實際證明 10/10 通過、proof 雜湊 10/10 唯一，每份 3,840 bytes，證明 $1.8452\pm0.0407$ 秒、驗證 $0.0619\pm0.0091$ 秒、峰值 RSS $246.21\pm0.74$ MiB。GitHub Actions 在 Ubuntu 與 Windows 各自重現 3 份證明與 2 客戶端 × 2 輪軌跡，最近一次（2026-10-05）全部通過。
+針對第~\ref{sec:gap} 節的缺口，第~\ref{sec:halo2} 節的 Halo2 電路把設定期承諾的秘密、commit-before-challenge 情境、Poseidon PRG 與離散取樣一起放入證明關係。電路通過 8 個測試（4 個電路測試：誠實、篡改 $\qnoisy$、輪次情境替換、零噪聲偽造；4 個聯邦整合測試：JSON 位元精確往返、失敗消耗 ticket、資料相依訓練落在電路範圍、模型綁定與 accepted-only 聚合）。10 個獨立 seeds 的實際證明 10/10 通過、proof 雜湊 10/10 唯一，每份 3,840 bytes，證明 $1.8452\pm0.0407$ 秒、驗證 $0.0619\pm0.0091$ 秒、峰值 RSS $246.21\pm0.74$ MiB（10 seeds 平均 $\pm$ 95\% 信賴區間半寬；證明時間標準差 0.0569 秒）。GitHub Actions 在 Ubuntu 與 Windows 各自重現 3 份證明與 2 客戶端 × 2 輪軌跡，最近一次執行（2026-10-18，commit \texttt{d970126}）全部通過。
 
 逐更新多輪整合（表~\ref{tab:multiround}、圖~\ref{fig:multiround}）在 5 seeds × 3 客戶端 × 10 輪上為每一份更新產生實際 IPA 證明，只聚合通過者，並由獨立程序從磁碟重新產生驗證金鑰、重驗全部證明與模型鏈。150/150 證明通過、150/150 磁碟重驗、5/5 模型鏈完整；每份證明以 7 種探測（重播、客戶端／輪次／模型替換、含噪更新篡改、證明位元組損壞、失敗後重試）測試，1,050/1,050 被拒絕，其中重播的原始證明仍能通過密碼學驗證，必須由伺服器 ticket 狀態拒絕。所有誠實回合中，證明閘與相同含噪更新的直接聚合差異為 0（算術一致性檢查）。噪聲帶來的效用代價明顯：證明閘含噪最終準確率 $0.8309\pm0.0989$，無噪聲量化訓練 $0.9441\pm0.0148$；seed 62 僅 0.707，反映 $k=16$ 噪聲對 $\pm1$ 量化 4 維更新的相對幅度很大。
 
@@ -570,7 +570,7 @@ $K$ & 切分 & Label TV & FL & DP & DP/FL & DP 95\% CI 半寬 \\
 \midrule
 Iris 線性 & 15 & 0.100 & 0.033 & 12,272 & 138 & 410.0 \\
 Wine 線性 & 42 & 0.154 & 0.041 & 11,961 & 379 & 412.5 \\
-Digits 線性 & 650 & 0.586 & 0.034 & 11,988 & 5,851 & 426.0 \\
+Digits 線性 & 650 & 0.586 & 0.034 & 11,991 & 5,851 & 426.0 \\
 CoverType 線性 & 385 & $0.530\pm0.136$ & $0.046\pm0.012$ & 12,268 & 3,468 & 419.1 \\
 CoverType MLP-16 & 999 & $1.524\pm0.249$ & $0.054\pm0.005$ & 12,286 & 8,994 & 439.4 \\
 CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 & 471.3 \\
@@ -593,7 +593,7 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 \subsection{綜合討論}
 本研究的證據必須分成兩條線呈現。固定四維 Halo2 線（第~\ref{sec:res-halo2}、\ref{sec:privacy} 節）具備真正隱藏的隨機性、逐更新實際證明與有限 profile 的 $\eps$，但資料為合成、維度小、$\eps$ 大、形式化安全不完整。385 至 1,991 維的 EZKL／FL scaling 線（第~\ref{sec:utility}、\ref{sec:cost} 節）有較高維、較多客戶端與輪數的成本與效用壓力測試，但只驗證約束，沒有同等的隱藏隨機性與有限 $\eps$。任何摘要都不應把兩者合併成「高維且 $\eps\le28.84$ 的完整系統」。
 
-從具體到一般：Adult 的單輪證明閘結果是具體案例；17 個資料集、CoverType、非同質與多輪威脅實驗支撐較一般性的說法——constraint-only DP 更新審計在線性模型與本實驗規模上可行且可控制聚合。從一般回到具體：Banknote、Blood Transfusion、Heart Disease、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「constraint-only DP 更新審計與證明閘聚合在本研究範圍內成立，且秘密隨機性已可進入實際電路」；最重要的負面結果是「可審計不等於正式 DP，也不等於完整投毒防禦」。
+從具體到一般：Adult 的單輪證明閘結果是具體案例；17 個資料集（含 CoverType 的大型 scaling）、非同質與多輪威脅實驗支撐較一般性的說法——constraint-only DP 更新審計在線性模型與本實驗規模上可行且可控制聚合。從一般回到具體：Banknote、Blood Transfusion、Heart Disease、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「constraint-only DP 更新審計與證明閘聚合在本研究範圍內成立，且秘密隨機性已可進入實際電路」；最重要的負面結果是「可審計不等於正式 DP，也不等於完整投毒防禦」。
 
 %====================================================================
 \section{結論與建議}
@@ -605,7 +605,7 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 聯邦學習中 DP 更新的裁剪上界與加性噪聲關係，可透過 canonical quantized witness 與固定容差策略轉換為 ZKML 可審計條件；設定期綁定的客戶端秘密、commit-before-challenge 情境、Poseidon PRG、離散二項式取樣與上述關係已整合進實際 Halo2 證明，並在 3 客戶端 × 10 輪 × 5 seeds 上完成 150/150 份逐更新證明與磁碟重驗；對固定 $d=4$、$k=16$、10 輪 profile 的理想離散機制，replacement client-level 會計結果為 $\eps$ 約 28.84（$\delta=10^{-5}$），實際協定的完整 computational-DP 證明尚待完成。系統證據另涵蓋兩種實際證明後端、10 seeds 可重現性、1,991 維約束成本、50 客戶端／20 輪訓練與 10 seeds 的有界投毒穩健聚合。
 \end{quote}
 
-不可主張的包括：任意維度與輪數的統一 $\eps$；完整本地訓練正確性或任意投毒防禦；production 部署效能（1,000 份證明為外推）；以及除穩健聚合外的統計顯著性。Poseidon 版的 computational DP 依賴 PRF、唯一情境、設定期承諾、commit-before-challenge 與秘密不洩漏等明示假設。
+不可主張的包括：任意維度與輪數的統一 $\eps$；完整本地訓練正確性或任意投毒防禦；production 部署效能（1,000 份證明為外推）；以及除穩健聚合外的統計顯著性。Poseidon 版的 computational DP 也不可主張：若要成立，須先完成 PRF hybrid 與 transcript 模擬，且至少依賴 PRF、唯一情境、設定期承諾、commit-before-challenge 與秘密不洩漏等假設，$\delta$ 項並須加上 $(1+e^{\eps})\cdot\mathrm{Adv}_{\mathrm{PRF}}$。
 
 \subsection{計畫成果自評：與提案的對照}
 \label{sec:selfeval}
@@ -655,7 +655,7 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 \appendix
 \section{主張—證據—檔案對照}
 \label{app:evidence}
-下表為正文每項主張對應的腳本與原始結果檔（路徑相對於 repository 根目錄的 \path{experiments/}）。數字若與二手摘要衝突，以原始檔及其產生腳本為準。本報告對應 repository 分支 \texttt{docs/nstc-final-report}：Heart Disease 的程式、原始結果與摘要列自 commit \texttt{bf2dd27} 起加入（審查抽查的 \texttt{4623db8} 尚無此資料集，其摘要檔只有 11 個資料集）；Titanic 去除 boat／body 的重跑、EZKL 公開 $\qnoisy$ 綁定與其拒絕測試、固定上界 pattern 會計，均自 2026-10-18 的審查修訂 commit \texttt{564c3f4} 起加入。
+下表為正文每項主張對應的腳本與原始結果檔（路徑相對於 repository 根目錄的 \path{experiments/}）。數字若與二手摘要衝突，以原始檔及其產生腳本為準。本報告對應 repository 分支 \texttt{docs/nstc-final-report}：Heart Disease 的程式、原始結果與摘要列自 commit \texttt{bf2dd27} 起加入（審查抽查的 \texttt{4623db8} 尚無此資料集，其摘要檔只有 11 個資料集）；Titanic 去除 boat／body 的重跑、EZKL 公開 $\qnoisy$ 綁定與其拒絕測試、固定上界 pattern 會計，均自 2026-10-18 的審查修訂 commit \texttt{564c3f4} 起加入。伺服器以固定 verifying key 自行驗證、自選電路與驗證失敗旗標兩個拒絕案例，以及摘要與隱私段落的條件式改寫，為 2026-10-20 第二輪審查的修訂。
 
 \begin{small}
 \begin{longtable}{P{4.2cm}P{5.2cm}P{5.4cm}}
@@ -664,7 +664,9 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 \midrule
 \endhead
 量化誤拒、canonical witness、容差區間、推薦 profile（9/9、18/18） & \path{quantized_constraint_analysis/}, \path{canonical_witness/}, \path{constraint_profile/} & 各目錄 \path{results/*.csv}、\path{summary.md} \\
-EZKL 實際證明、證明閘單輪（公開 $\qnoisy$ 綁定、替換向量拒絕）、端到端回寫 & \path{ezkl_constraint_integration/}, \path{proof_gated_round/} (\path{gate.py}, \path{test_gate.py}), \path{end_to_end_proof_gated_round/} & \path{results/actual_ezkl_summary.md}, \path{results/proof_gated_round.csv}, \path{results/statements.json}, \path{results/summary.md} \\
+量化尺度 8/12/16 的準確率、證明時間與 proof 大小 & \path{quantization_scale_sweep/} & \path{results/scale_sweep_results.csv} \\
+FedAvg 基準（S0）與裁剪加種子化噪聲（S1） & \path{fedavg_baseline/}, \path{dp_fedavg_baseline/} & \path{results/round_metrics.csv}, \path{results/round_metrics_dp.csv}, \path{results/summary.md} \\
+EZKL 實際證明、證明閘單輪（公開 $\qnoisy$ 綁定、替換向量拒絕、伺服器以固定 verifying key 自行驗證、自選電路與驗證失敗旗標的拒絕案例）、端到端回寫 & \path{ezkl_constraint_integration/}, \path{proof_gated_round/} (\path{gate.py}, \path{server_verifier.py}, \path{ezkl_roles.py}, \path{test_gate.py}), \path{end_to_end_proof_gated_round/} & \path{results/actual_ezkl_summary.md}, \path{results/proof_gated_round.csv}, \path{results/statements.json}, \path{results/summary.md} \\
 12 個二元（含 Heart Disease；Titanic 已去除 boat／body）與 3 個多類別資料集保留率 & \path{binary_dataset_repeatability/}, \path{multiclass_repeatability/} & \path{results/multi_dataset_summary.csv}, \path{results/multi_dataset_runs.csv}, \path{results/config.json}, \path{results/multiclass_summary.csv} \\
 CoverType 樣本量 scaling；非同質與 $K$ scaling & \path{covertype_large_dataset_scaling/}, \path{noniid_client_scaling/} & \path{results/covertype_scaling_summary.csv}, \path{results/noniid_client_summary.csv} \\
 15--650 維與 385--1,991 維 EZKL 成本；$K$ 至 50、$R$ 至 20 & \path{zk_cost_scaling/}, \path{production_scaling/} & \path{results/zk_cost_scaling_summary.csv}, \path{results/actual_ezkl_proof_scaling.csv}, \path{results/scaling_summary.csv} \\
