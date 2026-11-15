@@ -122,6 +122,22 @@ class DecisionTests(unittest.TestCase):
         self.assertFalse(decision.relation_ok)
         self.assertFalse(decision.accepted)
 
+    def test_fractional_residual_is_rejected(self) -> None:
+        """Private inputs may be fractional: a 0.5 offset in q_noise proves a residual of 0.25."""
+        statement = PublicStatement(98_890_825.0, 0.25, tuple(HONEST_Q_NOISY))
+        decision = decide(verified=True, statement=statement, submitted_q_noisy=HONEST_Q_NOISY)
+        self.assertFalse(decision.relation_ok)
+        self.assertFalse(decision.accepted)
+
+    def test_known_boundary_unconstrained_noise_accepts_any_update(self) -> None:
+        """Documents a limit, not a feature: q_noise is a private witness with no range check, so
+        q_clipped = 0 and q_noise = q_noisy prove clip 0 and residual 0 for any vector. The EZKL gate
+        cannot bound the update size; only in-circuit noise generation (the Halo2 line) can."""
+        large = [1_000_000 if i % 2 == 0 else -1_000_000 for i in range(10)]
+        proof, settings = fake_proof(0, 0, large)
+        decision = decide(verified=True, statement=decode_public_statement(proof, settings), submitted_q_noisy=large)
+        self.assertTrue(decision.accepted)
+
     def test_clip_violation_is_rejected(self) -> None:
         bound = RECOMMENDED_POLICY.clip_rhs_bound_sq + RECOMMENDED_POLICY.slack_abs
         proof, settings = fake_proof(bound + 1, 0, HONEST_Q_NOISY)
@@ -184,6 +200,24 @@ class RecordedProofTests(unittest.TestCase):
         # Valid honest proof, tampered client's vector submitted in its place.
         self.assertFalse(decide(verified=True, statement=honest_0, submitted_q_noisy=tampered.q_noisy).accepted)
         self.assertFalse(decide(verified=True, statement=honest_0, submitted_q_noisy=honest_2.q_noisy).accepted)
+
+    def test_recorded_boundary_and_fractional_cases(self) -> None:
+        settings = load(SERVER_DIR / "settings.json")
+        for name, accepted in (
+            ("boundary_adaptive_noise", True),
+            ("boundary_arbitrary_magnitude", True),
+            ("attack_fractional_residual", False),
+        ):
+            case_dir = BASE_DIR / "ezkl_client_checks" / name
+            if not (case_dir / "proof.json").is_file():
+                self.skipTest(f"{name} not regenerated")
+            statement = decode_public_statement(load(case_dir / "proof.json"), settings)
+            submitted = [int(v) for v in load(case_dir / "artifact.json")["witness"]["q_noisy"]]
+            self.assertEqual(decide(verified=True, statement=statement, submitted_q_noisy=submitted).accepted, accepted, name)
+        tampered = load(CASE_DIRS["tampered_1"] / "artifact.json")["witness"]["q_noisy"]
+        adaptive = decode_public_statement(load(BASE_DIR / "ezkl_client_checks" / "boundary_adaptive_noise" / "proof.json"), settings)
+        # The rejected client's exact vector gets through once the change is moved into private q_noise.
+        self.assertEqual(list(adaptive.q_noisy), [int(v) for v in tampered])
 
 
 class ServerVerificationTests(unittest.TestCase):

@@ -20,6 +20,11 @@ Rejected clients:
 Adversarial cases (real EZKL):
 - foreign_circuit_and_vk: client_reported_verified=True, verified_under_client_vk=True, accepted_if_client_setup_trusted=True, server_verified=False, clip_ok=True, relation_ok=True, binding_ok=True, accepted=False
 - failed_proof_with_true_flag: client_reported_verified=True, server_verified=False, clip_ok=True, relation_ok=True, binding_ok=True, accepted=False
+- attack_fractional_residual: client_reported_verified=True, server_verified=True, clip_ok=True, relation_ok=False, binding_ok=True, accepted=False
+
+Known boundary - unconstrained private noise (real EZKL, accepted by design of this circuit):
+- boundary_adaptive_noise: server_verified=True, clip_sum_sq=98890825.0, relation_sum_sq=0.0, max|q_noisy|=7531, accepted=True
+- boundary_arbitrary_magnitude: server_verified=True, clip_sum_sq=0.0, relation_sum_sq=0.0, max|q_noisy|=1000000, accepted=True
 
 Interpretation:
 - This experiment runs actual EZKL-backed client checks before aggregation.
@@ -33,4 +38,8 @@ Interpretation:
   so a valid proof cannot be reused to aggregate a different update.
 - A proof made under a client's own circuit and vk, or one that fails verification, is rejected
   whatever the client reports about it.
+- q_noise is a private witness with no range check and no seed binding. The gate therefore only
+  rejects a client whose own witness is inconsistent (the tampered client above); a client that
+  puts its change into q_noise is accepted with any update size (known boundary cases). Bounding
+  the update needs in-circuit noise generation, as in the Halo2 line.
 - Local training provenance is still outside the statement (see the threat model).

@@ -24,7 +24,8 @@ python -m unittest discover -s experiments/proof_gated_round -p "test*.py" -v
 - `results/summary.md`
 - `ezkl_client_checks/server_setup/`：伺服器固定的電路、`settings.json`、`network.ezkl`（`vk.key`、`pk.key`、`kzg.srs` 不版控）
 - `ezkl_client_checks/client_*/{input.json,witness.json,proof.json,summary.json}`：客戶端以伺服器的電路、pk、SRS 產生的 proof；`summary.json` 的 `client_reported_verified` 只是客戶端自檢，伺服器不讀
-- `ezkl_client_checks/attack_foreign_circuit/`、`attack_failed_proof_true_flag/`：兩個拒絕案例的 proof
+- `ezkl_client_checks/attack_foreign_circuit/`、`attack_failed_proof_true_flag/`、`attack_fractional_residual/`：三個拒絕案例的 proof
+- `ezkl_client_checks/boundary_adaptive_noise/`、`boundary_arbitrary_magnitude/`：私有噪聲無約束的已知邊界案例（會被接受，刻意保留紀錄）
 
 ## 證明陳述與伺服器決策（2026-10-18 審查修正）
 
@@ -49,9 +50,20 @@ python -m unittest discover -s experiments/proof_gated_round -p "test*.py" -v
 
 `ServerVerificationTests` 需要可執行 EZKL 的直譯器（`PROOF_GATED_PYTHON` 或 conda 環境 `zkML`）與本機重新產生的 `server_setup` 金鑰；CI 沒有這些檔案時會 skip。
 
+## 已知邊界：私有噪聲沒有約束（2026-11-16 審查）
+
+檢查電路證明的是「存在私有的 `q_clipped`、`q_noise`，使 `sum(q_clipped^2) <= bound` 且 `q_noisy = q_clipped + q_noise`」。`q_noise` 是私有 witness，既沒有範圍檢查，也沒有綁定種子，所以任何整數 `q_noisy` 都能取 `q_clipped = 0`、`q_noise = q_noisy` 滿足兩個條件。這一關因此只能拒絕**自身 witness 不一致**的客戶端（例如本實驗的篡改客戶端），不限制被聚合更新的幅度。`run_actual_proof_gated_round.py` 以伺服器自己的電路、pk、SRS 產生兩份實際 proof 記錄這個邊界，結果寫在 `statements.json` 的 `known_boundary_cases`：
+
+- `boundary_adaptive_noise`：送出被拒客戶端的同一個 `q_noisy`，只把 `q_noise` 改成 `q_noisy - q_clipped`；
+- `boundary_arbitrary_magnitude`：`q_clipped = 0`、`q_noise = q_noisy = ±1,000,000`。
+
+兩者都通過伺服器驗證並被接受。限制更新幅度需要在電路內由秘密種子產生有界噪聲，也就是 Halo2 線。
+
+同一輪也發現私有輸入可帶小數：`q_noise` 某座標加 0.5 會證明出殘差 0.25。原本以 `relation_sum_sq < 0.5` 判斷會接受，現改為要求殘差恰為 0，並以 `attack_fractional_residual` 記錄為拒絕案例。
+
 ## 重要說明
 
 - 這一輪會對 3 個 client 分別跑實際的 EZKL constraint proof/check
 - 預設會把其中 1 個 client 換成 tampered case
-- server 只聚合證明驗證通過、約束成立且與公開陳述一致的 `q_noisy` 更新
+- server 只聚合證明驗證通過、約束成立且與公開陳述一致的 `q_noisy` 更新；約束不限制更新幅度（見上節）
 - 這條 EZKL 線的噪聲種子仍是公開的（`gaussian_privacy_accounting/` 的 `epsilon = infinity`），綁定修正不改變這一點

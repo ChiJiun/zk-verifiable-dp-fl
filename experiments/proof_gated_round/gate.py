@@ -146,8 +146,9 @@ def decide(
     clip_ok = statement.clip_sum_sq <= policy.clip_rhs_bound_sq + policy.slack_abs
     if not clip_ok:
         reasons.append("proven clip_sum_sq exceeds bound + slack")
-    # The residual is an integer square sum; any violation is at least 1 in fixed point.
-    relation_ok = statement.relation_sum_sq < 0.5
+    # Private inputs are not forced to be integers (EZKL quantizes them at input scale 13), so a
+    # residual can be fractional, e.g. 0.25 from a 0.5 offset in q_noise. Only an exact zero passes.
+    relation_ok = statement.relation_sum_sq == 0.0
     if not relation_ok:
         reasons.append("proven relation residual is non-zero")
     binding_ok = tuple(int(value) for value in submitted_q_noisy) == statement.q_noisy

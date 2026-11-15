@@ -13,6 +13,11 @@ The server verifies each received proof itself with its fixed vk, settings and S
 the instances of that same proof (``server_verifier.judge``). Two rejection cases are run with
 real EZKL: a proof made under a client's own circuit and vk, and a proof that fails verification
 while the client's flag claims it verified.
+
+Review finding (2026-11-16): q_noise is a private witness with no range check or seed binding, so a
+client can satisfy both checks for any q_noisy by choosing q_noise. Two such proofs are recorded as
+known-boundary cases (accepted), and a fractional-residual proof is recorded as a rejection case
+now that the server requires an exactly-zero residual.
 """
 from __future__ import annotations
 
@@ -153,6 +158,64 @@ def failed_proof_true_flag_case(python_cmd: list[str], honest_row: dict[str, obj
     }
 
 
+def prove_crafted_witness(
+    python_cmd: list[str], case: str, artifact: dict, submitted: list[int]
+) -> dict[str, object]:
+    """Prove a hand-built witness with the server's own circuit, pk and SRS, then let the server judge it."""
+    case_dir = DEMO_DIR / case
+    case_dir.mkdir(parents=True, exist_ok=True)
+    (case_dir / "artifact.json").write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+    client = run_role(python_cmd, "client-prove", SERVER_DIR, case_dir / "artifact.json", case_dir)
+    judgement = judge(case_dir / "proof.json", submitted, python_cmd)
+    return {
+        "case": case,
+        "proof_path": (case_dir / "proof.json").relative_to(ROOT_DIR).as_posix(),
+        "client_reported_verified": client["client_reported_verified"],
+        "server_verified": judgement.verified,
+        "server_verify_error": judgement.verify_error,
+        "public_statement": judgement.statement.to_json(),
+        "decision": judgement.decision.to_json(),
+    }
+
+
+def unconstrained_noise_boundary_cases(python_cmd: list[str], tampered_client: int) -> list[dict[str, object]]:
+    """Known boundary, recorded on purpose: q_noise is a private witness with no range check and no
+    binding to a seed, so the circuit cannot limit the update. A client that moves its tampering into
+    q_noise passes every check. Only the Halo2 line (noise generated in-circuit, bounded) closes this."""
+    honest = load_json(ARTIFACTS_DIR / "client_0_honest_profile.json")
+    tampered = load_json(ARTIFACTS_DIR / f"client_{tampered_client}_tampered_noisy_profile.json")
+    q_clipped = [int(v) for v in honest["witness"]["q_clipped"]]
+
+    adaptive = json.loads(json.dumps(honest))
+    target = [int(v) for v in tampered["witness"]["q_noisy"]]
+    adaptive["witness"]["q_noisy"] = target
+    adaptive["witness"]["q_noise"] = [t - c for t, c in zip(target, q_clipped)]
+
+    magnitude = json.loads(json.dumps(honest))
+    large = [1_000_000 if i % 2 == 0 else -1_000_000 for i in range(len(q_clipped))]
+    magnitude["witness"]["q_clipped"] = [0] * len(q_clipped)
+    magnitude["witness"]["q_noise"] = list(large)
+    magnitude["witness"]["q_noisy"] = list(large)
+
+    cases = [
+        prove_crafted_witness(python_cmd, "boundary_adaptive_noise", adaptive, target),
+        prove_crafted_witness(python_cmd, "boundary_arbitrary_magnitude", magnitude, large),
+    ]
+    for case in cases:
+        case["expected"] = "accepted: q_noise is an unconstrained private witness (known boundary of the EZKL line)"
+    return cases
+
+
+def fractional_residual_case(python_cmd: list[str]) -> dict[str, object]:
+    """Private inputs are not forced to be integers: a 0.5 offset in one q_noise coordinate gives a
+    proven residual of 0.25. The server requires an exact zero, so this is rejected."""
+    artifact = load_json(ARTIFACTS_DIR / "client_0_honest_profile.json")
+    artifact["witness"]["q_noise"] = list(artifact["witness"]["q_noise"])
+    artifact["witness"]["q_noise"][0] = artifact["witness"]["q_noise"][0] + 0.5
+    submitted = [int(v) for v in artifact["witness"]["q_noisy"]]
+    return prove_crafted_witness(python_cmd, "attack_fractional_residual", artifact, submitted)
+
+
 def cross_client_swaps(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     """Keep client i's valid proof, submit client j's vector: every pair must be rejected."""
     swaps: list[dict[str, object]] = []
@@ -204,6 +267,7 @@ def write_statements(
     rows: list[dict[str, object]],
     swaps: list[dict[str, object]],
     adversarial: list[dict[str, object]],
+    boundary: list[dict[str, object]],
     server_setup: dict[str, object],
     output_path: Path,
 ) -> None:
@@ -236,6 +300,13 @@ def write_statements(
         ],
         "cross_client_swaps": swaps,
         "adversarial_cases": adversarial,
+        "known_boundary_cases": boundary,
+        "known_boundary_note": (
+            "q_noise is a private witness with no range check and no binding to a seed. Choosing "
+            "q_noise = target - q_clipped (or q_clipped = 0 and q_noise = q_noisy) satisfies both checks for "
+            "any integer q_noisy, so the EZKL gate only rejects clients whose own witness is inconsistent; it "
+            "does not bound the update. The Halo2 line generates bounded noise inside the circuit."
+        ),
         "note": (
             "verified is the server's own ezkl.verify on the received proof with the server_setup vk, settings "
             "and SRS; the proven statement is decoded from the instances of that same proof with the server's "
@@ -249,6 +320,7 @@ def write_summary(
     rows: list[dict[str, object]],
     swaps: list[dict[str, object]],
     adversarial: list[dict[str, object]],
+    boundary: list[dict[str, object]],
     output_path: Path,
     tampered_client: int,
     accepted_average: list[float],
@@ -297,6 +369,15 @@ def write_summary(
             f"server_verified={case['server_verified']}, clip_ok={decision['clip_ok']}, "
             f"relation_ok={decision['relation_ok']}, binding_ok={decision['binding_ok']}, accepted={decision['accepted']}"
         )
+    lines.extend(["", "Known boundary - unconstrained private noise (real EZKL, accepted by design of this circuit):"])
+    for case in boundary:
+        decision = case["decision"]
+        statement = case["public_statement"]
+        lines.append(
+            f"- {case['case']}: server_verified={case['server_verified']}, clip_sum_sq={statement['clip_sum_sq']}, "
+            f"relation_sum_sq={statement['relation_sum_sq']}, max|q_noisy|={max(abs(v) for v in statement['q_noisy'])}, "
+            f"accepted={decision['accepted']}"
+        )
     lines.extend(
         [
             "",
@@ -312,6 +393,10 @@ def write_summary(
             "  so a valid proof cannot be reused to aggregate a different update.",
             "- A proof made under a client's own circuit and vk, or one that fails verification, is rejected",
             "  whatever the client reports about it.",
+            "- q_noise is a private witness with no range check and no seed binding. The gate therefore only",
+            "  rejects a client whose own witness is inconsistent (the tampered client above); a client that",
+            "  puts its change into q_noise is accepted with any update size (known boundary cases). Bounding",
+            "  the update needs in-circuit noise generation, as in the Halo2 line.",
             "- Local training provenance is still outside the statement (see the threat model).",
         ]
     )
@@ -354,17 +439,21 @@ def main() -> int:
     adversarial = [
         foreign_circuit_case(python_cmd, args.tampered_client),
         failed_proof_true_flag_case(python_cmd, honest_row),
+        fractional_residual_case(python_cmd),
     ]
     for case in adversarial:
         print(f"Adversarial {case['case']}: server_verified={case['server_verified']} accepted={case['decision']['accepted']}")
+    boundary = unconstrained_noise_boundary_cases(python_cmd, args.tampered_client)
+    for case in boundary:
+        print(f"Known boundary {case['case']}: server_verified={case['server_verified']} accepted={case['decision']['accepted']}")
 
     swaps = cross_client_swaps(rows)
     accepted_average = aggregate_accepted([row["statement"] for row in rows], [row["decision"] for row in rows])
 
     write_rows(rows, RESULTS_DIR / "proof_gated_round.csv")
-    write_statements(rows, swaps, adversarial, server_setup, RESULTS_DIR / "statements.json")
+    write_statements(rows, swaps, adversarial, boundary, server_setup, RESULTS_DIR / "statements.json")
     write_aggregate(RESULTS_DIR / "accepted_aggregate.json", accepted_average)
-    write_summary(rows, swaps, adversarial, RESULTS_DIR / "summary.md", args.tampered_client, accepted_average)
+    write_summary(rows, swaps, adversarial, boundary, RESULTS_DIR / "summary.md", args.tampered_client, accepted_average)
     print(f"Results saved to: {RESULTS_DIR}")
     return 0
 

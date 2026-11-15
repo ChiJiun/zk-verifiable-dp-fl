@@ -11,7 +11,7 @@
 | Actual Halo2 circuit 已整合 setup-bound secret、commit-before-challenge context、Poseidon PRG、canonical centered-binomial sampler、clipping 與 additive-noise relation | 任意維度、任意 participation／rounds 的統一 DP 保證 |
 | 固定 `d=4, k=16`、10 rounds、replacement-client profile 的**理想離散機制**，exact PLD 會計結果為 `epsilon ≈ 28.84` at `delta=1e-5`；若維持 `sum(q^2) <= 4` 的固定上界，此上界與維度無關 | 實際協定完整 transcript 的 computational-DP 證明（尚待完成）；385–1,991 維 EZKL 實驗也具有相同 epsilon；`epsilon=28.84` 已具強實務隱私 |
 | 3 clients × 10 rounds × 5 seeds 的 150 份逐更新 proof 通過（平均 1.952 s、最大 3.994 s），模型鏈可從磁碟重驗 | 更新確實由指定資料與 optimizer 產生，或能阻止任意 poisoning |
-| EZKL 證明閘的公開陳述含 `q_noisy`；伺服器只聚合證明中公開的向量，替換提交向量會被拒絕（`experiments/proof_gated_round/test_gate.py`） | EZKL 線具有隱藏 randomness 或有限 epsilon |
+| EZKL 證明閘的公開陳述含 `q_noisy`；伺服器只聚合證明中公開的向量，替換提交向量會被拒絕（`experiments/proof_gated_round/test_gate.py`） | EZKL 線具有隱藏 randomness 或有限 epsilon；EZKL 閘限制更新幅度（私有 `q_noise` 無約束，調整噪聲即可讓任意更新通過） |
 | 高維 EZKL constraint cost、K=50／R=20 scaling 與 bounded-poisoning robust aggregation 已量測 | Production 部署效能；1,000-proof workload 仍是明示外推 |
 
 最重要的負面結果也保留：public seed 的舊機制為 `epsilon = infinity`；合法 clipping 範圍內的 300/300 惡意更新會通過 proof gate。詳見[威脅模型](docs/research/threat-model.md)與[主張—證據對照](docs/research/claim-evidence-map.md)。

@@ -28,7 +28,7 @@
 
 | 對手／失敗模式 | 目前處理 | 尚未成立的保證 |
 |---|---|---|
-| 偽造 clipping 或 additive relation | Halo2／EZKL constraint 拒絕 | 不證明更新由指定 optimizer 或資料產生 |
+| 偽造 clipping 或 additive relation | Halo2／EZKL constraint 拒絕 witness 自身不一致的更新 | 不證明更新由指定 optimizer 或資料產生；EZKL 線的 `q_noise` 是無約束的私有 witness，把篡改移入噪聲即可讓任意幅度的更新通過（`proof_gated_round/results/statements.json` 的 `known_boundary_cases`），只有 Halo2 線（電路內產生的有界噪聲）限制更新幅度 |
 | 保留合法 proof、替換提交聚合的向量 | Halo2 線 `q_noisy` 為 public input；EZKL 線自 2026-10-18 起把 `q_noisy` 列為 public output，server 只聚合證明中公開的向量（`proof_gated_round/gate.py`） | 綁定的是向量與約束，不是向量的來源 |
 | Public seed、zero noise、context swap | Halo2 hidden randomness 與 context binding | 完整 transcript 的 computational DP 仍依賴 PRF、ZK 與 composition 假設 |
 | Replay／challenge grinding | commit-before-challenge、single-use challenge、server replay state | selective abort／dropout leakage 尚未形式化 |
