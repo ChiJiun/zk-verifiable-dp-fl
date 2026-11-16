@@ -238,7 +238,7 @@ S2 要求客戶端對（裁剪、噪聲生成、加噪）提交零知識證明 $
 \end{equation}
 其中 $\lambda$ 為吸收裁剪邊界捨入誤差的固定容差。推薦 profile 為 $s=10000$、$C=1.0$、噪聲倍率 $0.08$、容差 $4201$ ppm（$\lambda=420100$）；此值由誠實案例最大超額 4200 ppm 與篡改案例最小超額 73300 ppm 之間的安全區間決定。
 
-EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，公開輸出為裁剪平方和、關係殘差與 $\qnoisy$ 本身；證明保證檢查模型被正確計算，伺服器則只由證明的公開 instance 解碼這三者、以固定 profile 重算接受條件，並要求客戶端提交聚合的向量與證明中公開的 $\qnoisy$ 逐座標相同。這項綁定是依審查意見補上的：先前版本把 $\qnoisy$ 放在私有輸入、由 artifact 讀取向量與檢查旗標，無法證明「被聚合的向量就是被證明的向量」（第~\ref{sec:res-constraint} 節）。伺服器另以自己固定的 verifying key、settings 與 SRS，對收到的同一份 proof 呼叫 \texttt{ezkl.verify}，通過後才解碼該 proof 的 instance；客戶端只取得伺服器編譯的電路、proving key 與 SRS，客戶端自報的驗證旗標不被讀取。接受條件要求證明的殘差恰為 0：私有輸入不限於整數，小數偏移會產生小於 1 的殘差。須特別注意，$\qnoise$ 是私有 witness，電路既不檢查其範圍，也不把它綁定到種子；任何整數 $\qnoisy$ 都可取 $\qclip=0$、$\qnoise=\qnoisy$ 滿足式~\eqref{eq:constraints}。因此這一關只能拒絕自身 witness 不一致的客戶端，不限制被聚合更新的幅度；要限制幅度，必須在電路內由秘密種子產生有界噪聲，即第~\ref{sec:halo2} 節的 Halo2 線。此設計的信任假設是伺服器的 setup 可信：本實驗以單機模擬三方，SRS 由 \texttt{ezkl.gen\_srs} 產生，屬測試用而非公開 ceremony 的 SRS；部署時須改用可信 SRS，並公開 verifying key 與 settings 的雜湊。這條線在 S1 階段使用\textbf{公開}的確定性種子產生噪聲以便重播驗證，其隱私後果在第~\ref{sec:gap} 節誠實處理。
+EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，公開輸出為裁剪平方和、關係殘差與 $\qnoisy$ 本身；證明保證檢查模型被正確計算，伺服器則只由證明的公開 instance 解碼這三者、以固定 profile 重算接受條件，並要求客戶端提交聚合的向量與證明中公開的 $\qnoisy$ 逐座標相同。這項綁定是依審查意見補上的：先前版本把 $\qnoisy$ 放在私有輸入、由 artifact 讀取向量與檢查旗標，無法證明「被聚合的向量就是被證明的向量」（第~\ref{sec:res-constraint} 節）。伺服器另以自己固定的 verifying key、settings 與 SRS，對收到的同一份 proof 呼叫 \texttt{ezkl.verify}，通過後才解碼該 proof 的 instance；客戶端只取得伺服器編譯的電路、proving key 與 SRS，客戶端自報的驗證旗標不被讀取。接受條件要求證明的殘差恰為 0：私有輸入不限於整數，小數偏移會產生小於 1 的殘差。須特別注意，$\qnoise$ 是私有 witness，電路既不檢查其範圍，也不把它綁定到種子；任何整數 $\qnoisy$ 都可取 $\qclip=0$、$\qnoise=\qnoisy$ 滿足式~\eqref{eq:constraints}。因此這一關只能拒絕自身 witness 不一致的客戶端，不限制被聚合更新的幅度；要限制幅度，必須在電路內由秘密種子產生有界噪聲，即第~\ref{sec:halo2} 節的 Halo2 線。此設計的信任假設是伺服器的 setup 可信：本實驗以單機模擬三方，SRS 由 \texttt{ezkl.gen\_srs} 產生，屬測試用而非公開 ceremony 的 SRS；部署時須改用可信 SRS，並公開 verifying key 與 settings 的雜湊。這條線在 S1 階段以\textbf{公開}的確定性種子產生噪聲（種子寫在 artifact 中，證明閘並不以它重算 $\qnoise$），其隱私後果在第~\ref{sec:gap} 節誠實處理。
 
 \subsection{情境綁定秘密隨機性與 Halo2 電路}
 \label{sec:halo2}
@@ -249,7 +249,7 @@ EZKL 線把式~\eqref{eq:constraints} 編成小型 ONNX 檢查模型，公開輸
   \item 客戶端、輪次、模型摘要、nonce、更新承諾與挑戰全部折入情境雜湊；
   \item 秘密與情境形成 keyed Poseidon PRG；
   \item 每個域元素先做完整 255 位元 canonical 分解與模數比較，再取低 $2k$ 位元；
-  \item $k=16$ 的 centered-binomial 噪聲等於 16 個正位元減 16 個負位元，即 $Z_i=\mathrm{Binomial}(2k,\tfrac12)-k$；
+  \item 噪聲為 $k=16$ 的 centered-binomial 分布 $Z_i=\mathrm{Binomial}(2k,\tfrac12)-k$，即 16 個正位元減 16 個負位元；
   \item $\qclip[i]\in\{-1,0,1\}$、平方範數 $\le C_q^2=4$，且 $\qnoisy=\qclip+\qnoise$。
 \end{enumerate}
 第 5 項是必要修正：若只分配「看似正確」的低位元而不約束它確實對應該域元素，證明者可自選取樣位元，零噪聲偽造仍能成立。重播快取與單次挑戰仍是伺服器端狀態，電路證明的是公開情境與承諾的一致性。本研究選擇離散二項式而非提案中的拉普拉斯機制，理由是：二項式可在有限域內由位元精確取樣，不需超越函數的查找表近似，並能建立精確的隱私會計。
@@ -329,7 +329,7 @@ Canonical witness + 4201 ppm 容差 & 9/9 & 9/9 & 18/18 \\
 
 \subsection{只驗證約束為何不夠：公開種子、重播與零噪聲}
 \label{sec:gap}
-S2 約束線能拒絕違反裁剪與加性關係的更新，但兩組實驗顯示它還不是可驗證差分隱私。
+S2 的 EZKL 約束線只能拒絕 witness 自身不一致的更新；由於私有噪聲不受約束，它不限制被聚合更新的幅度（第~\ref{sec:res-constraint} 節）。以下兩組實驗進一步顯示，即使客戶端如實提交，它也還不是可驗證差分隱私。
 
 \textbf{公開種子使隱私預算為無限大。}S1／EZKL 線的 artifact 把確定性噪聲種子列為公開輸入；驗證者可重建 $\qnoise$ 並由 $\qnoisy-\qnoise$ 還原 $\qclip$，因此驗證者視角的隱私預算為 $\eps=\infty$。即使假設改用驗證者不知道的獨立 Gaussian 噪聲，client-level R\'enyi DP 會計~\cite{mironov2017rdp}（$q=1$、replace-one 敏感度 $2C$、10 輪、$\delta=10^{-5}$）顯示現行噪聲倍率 0.08 的條件式 $\eps$ 仍為 3504.357；要達到 $\eps=128/32/8$ 分別需要倍率 $0.531/1.396/4.366$，而三個多類別資料集的保留率隨之跌破 90\%（表~\ref{tab:frontier}、圖~\ref{fig:frontier}）。這說明「可驗證加噪」與「可驗證且不可預測的 DP 隨機性」是兩個不同問題，也說明高效用與有意義隱私預算之間存在實質衝突。
 
@@ -355,7 +355,7 @@ Wine & 1.009524 & 0.876190 & 0.609524 & 0.457143 \\
 \label{fig:frontier}
 \end{figure}
 
-\textbf{重播與零噪聲可通過只驗約束的閘。}多輪威脅矩陣（CoverType 100,000 筆、$K=10$、Dirichlet 0.1、3 輪、20\% 攻擊者、3 seeds）對 5 種攻擊比較 ungated、current gate（proof + clip + relation）與 strengthened gate（加情境綁定、重播保護、噪聲生成政策），共 48 條軌跡與 1,440 次客戶端決策。這 1,440 次決策重用前述 actual-EZKL 的 artifact／check contract，是政策模擬，不是 1,440 份實際證明。表~\ref{tab:threat-gap} 列出四種「聲明範圍內或應由情境政策處理」的攻擊；第五種（合法範圍內的符號反轉）屬於閘的保證邊界，留到第~\ref{sec:threatmatrix} 節。圖~\ref{fig:threat} 同時呈現五種攻擊。
+\textbf{重播與零噪聲可通過只驗約束的閘。}多輪威脅矩陣（CoverType 100,000 筆、$K=10$、Dirichlet 0.1、3 輪、20\% 攻擊者、3 seeds）對 5 種攻擊比較 ungated、current gate（proof + clip + relation）與 strengthened gate（加情境綁定、重播保護、噪聲生成政策），共 48 條軌跡與 1,440 次客戶端決策。這 1,440 次決策是政策模擬，不是 1,440 份實際證明：它沿用的是第~\ref{sec:res-constraint} 節修正前的 artifact 格式，由 artifact 內的 $\qclip$、$\qnoise$、$\qnoisy$ 重算裁剪與關係，證明是否通過與「噪聲生成是否合規」則讀取攻擊腳本設定的旗標（\path{run_multiround_threat_matrix.py}），沒有伺服器端驗證，也沒有在電路內重算噪聲。表~\ref{tab:threat-gap} 列出四種「聲明範圍內或應由情境政策處理」的攻擊；第五種（合法範圍內的符號反轉）屬於閘的保證邊界，留到第~\ref{sec:threatmatrix} 節。圖~\ref{fig:threat} 同時呈現五種攻擊。
 
 \begin{table}[H]
 \centering\small
@@ -382,7 +382,7 @@ Zero noise & 1.00 & 0.00 & 1.197807 & 0.585848 \\
 \label{fig:threat}
 \end{figure}
 
-結果支持兩個精確結論。第一，current gate 對 witness 自身不一致的 relation／clip 違規在多輪情境下確實拒絕（接受率 0\%）。矩陣中的 clip bypass 把放大部分留在 $\qclip$；若攻擊者改把超出部分放進不受約束的 $\qnoise$，current gate 不會拒絕（第~\ref{sec:res-constraint} 節以 EZKL 實測）。strengthened 政策的噪聲生成檢查依設計可擋下這個變體，但本矩陣沒有量測。第二，僅驗證加性關係不足以阻擋重播與零噪聲（接受率 100\%）；加入情境綁定與噪聲生成政策後降為 0\%。零噪聲在 ungated 與 current gate 下 clean 保留率大於 1，因為移除噪聲會提高準確率，所以「準確率上升」不能當作安全訊號；拒絕兩個最大的非同質客戶端後 strengthened 軌跡的 clean 保留率只有 0.585848，揭露安全拒絕與可用資料之間的代價。這兩個缺口（公開種子、情境與噪聲生成未被證明）正是第~\ref{sec:res-halo2} 節 Halo2 電路要解決的問題。
+結果支持兩個精確結論。第一，current gate 對 witness 自身不一致的 relation／clip 違規在多輪情境下確實拒絕（接受率 0\%）。矩陣中的 clip bypass 把放大部分留在 $\qclip$；若攻擊者改把超出部分放進不受約束的 $\qnoise$，current gate 不會拒絕（第~\ref{sec:res-constraint} 節以 EZKL 實測）。strengthened 政策的噪聲生成檢查在矩陣中只是攻擊腳本設定的模擬旗標，本矩陣既沒有量測這個變體，也不能據此宣稱它會被擋下；實際能檢查噪聲生成的只有第~\ref{sec:res-halo2} 節的 Halo2 電路。第二，僅驗證加性關係不足以阻擋重播與零噪聲（接受率 100\%）；加入情境綁定與噪聲生成政策後降為 0\%，但零噪聲的 0\% 來自上述模擬旗標，是設計上的必然結果，不是量測到的偵測率。零噪聲在 ungated 與 current gate 下 clean 保留率大於 1，因為移除噪聲會提高準確率，所以「準確率上升」不能當作安全訊號；拒絕兩個最大的非同質客戶端後 strengthened 軌跡的 clean 保留率只有 0.585848，揭露安全拒絕與可用資料之間的代價。這兩個缺口（公開種子、情境與噪聲生成未被證明）正是第~\ref{sec:res-halo2} 節 Halo2 電路要解決的問題。
 
 \subsection{解法：秘密隨機性電路與逐更新多輪整合}
 \label{sec:res-halo2}
@@ -460,7 +460,7 @@ Strengthened gate & 1.00 & 0.090566 & 0.179797 \\
 \end{tabular}
 \end{table}
 
-作為補償策略，穩健聚合實驗（CoverType 50,000/20,000、$K=10$、$R=5$、Dirichlet 0.5、20\% 攻擊者、10 seeds）在同樣的攻擊下比較均值、座標中位數與截尾平均；3,000/3,000 次決策（含 300/300 惡意更新）全部通過 strengthened gate。相較均值，座標中位數的配對保留率增益為 $0.1988\pm0.0404$、截尾平均 $0.1541\pm0.0306$，two-sided exact sign-flip $p=0.001953$（表~\ref{tab:robust}）。這是本研究唯一可稱「顯著」的比較，但中位數／截尾平均的攻擊下保留率仍只有約 0.59／0.54，不能寫成完全防禦；要徹底關閉這個邊界，需要本地訓練來源證明或更強的 robust-learning 分析。
+作為補償策略，穩健聚合實驗（CoverType 50,000/20,000、$K=10$、$R=5$、Dirichlet 0.5、20\% 攻擊者、10 seeds）在同樣的攻擊下比較均值、座標中位數與截尾平均；3,000/3,000 次決策（含 300/300 惡意更新）全部通過 strengthened gate（與威脅矩陣相同的政策模擬）。相較均值，座標中位數的配對保留率增益為 $0.1988\pm0.0404$、截尾平均 $0.1541\pm0.0306$，two-sided exact sign-flip $p=0.001953$（表~\ref{tab:robust}）。這是本研究唯一可稱「顯著」的比較，但中位數／截尾平均的攻擊下保留率仍只有約 0.59／0.54，不能寫成完全防禦；要徹底關閉這個邊界，需要本地訓練來源證明或更強的 robust-learning 分析。
 
 \begin{table}[H]
 \centering\small
@@ -593,7 +593,7 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 \subsection{綜合討論}
 本研究的證據必須分成兩條線呈現。固定四維 Halo2 線（第~\ref{sec:res-halo2}、\ref{sec:privacy} 節）具備真正隱藏的隨機性、逐更新實際證明與有限 profile 的 $\eps$，但資料為合成、維度小、$\eps$ 大、形式化安全不完整。385 至 1,991 維的 EZKL／FL scaling 線（第~\ref{sec:utility}、\ref{sec:cost} 節）有較高維、較多客戶端與輪數的成本與效用壓力測試，但只驗證約束，沒有同等的隱藏隨機性與有限 $\eps$。任何摘要都不應把兩者合併成「高維且 $\eps\le28.84$ 的完整系統」。
 
-從具體到一般：Adult 的單輪證明閘結果是具體案例；17 個資料集（含 CoverType 的大型 scaling）、非同質與多輪威脅實驗支撐較一般性的說法——constraint-only DP 更新審計在線性模型與本實驗規模上可行且可控制聚合。從一般回到具體：Banknote、Blood Transfusion、Heart Disease、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「constraint-only DP 更新審計與證明閘聚合在本研究範圍內成立，且秘密隨機性已可進入實際電路」；最重要的負面結果是「可審計不等於正式 DP，也不等於完整投毒防禦」。
+從具體到一般：Adult 的單輪證明閘結果是具體案例，顯示 EZKL 線能把聚合綁定到證明公開的向量、拒絕自身 witness 不一致的客戶端，但不能拒絕會調整私有噪聲的客戶端，也不限制更新幅度；17 個資料集（含 CoverType 的大型 scaling）與非同質實驗支撐的是效用與證明成本的可行性，多輪威脅矩陣則是政策模擬，兩者都不能證明 constraint-only 審計已成立。從一般回到具體：Banknote、Blood Transfusion、Heart Disease、CoverType 完整分割與 Dirichlet 0.1 的未達標結果提醒固定 DP 參數不能無條件沿用。最重要的正面結果是「秘密隨機性與有界噪聲已可進入實際 Halo2 電路，逐更新證明在小型多輪聯邦流程中能決定聚合」（150/150 份證明通過、1,050/1,050 次負面探測拒絕），這也是本研究唯一限制更新幅度的一條線；EZKL 線則提供聚合向量的綁定與自身一致性檢查，以及高維約束的成本數據。最重要的負面結果是「只驗證約束不能限制更新幅度；可審計不等於正式 DP，也不等於完整投毒防禦」。
 
 %====================================================================
 \section{結論與建議}
@@ -602,10 +602,10 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 本計畫完成從 ZKML、FL、DP 基準到可驗證約束、實際證明、證明閘聚合、秘密隨機性電路、exact 隱私會計、跨資料集與大型壓力測試、威脅矩陣與可重現性稽核的完整實驗鏈。可主張的核心結論是：
 
 \begin{quote}
-聯邦學習中 DP 更新的裁剪上界與加性噪聲關係，可透過 canonical quantized witness 與固定容差策略轉換為 ZKML 可審計條件；設定期綁定的客戶端秘密、commit-before-challenge 情境、Poseidon PRG、離散二項式取樣與上述關係已整合進實際 Halo2 證明，並在 3 客戶端 × 10 輪 × 5 seeds 上完成 150/150 份逐更新證明與磁碟重驗；對固定 $d=4$、$k=16$、10 輪 profile 的理想離散機制，replacement client-level 會計結果為 $\eps$ 約 28.84（$\delta=10^{-5}$），實際協定的完整 computational-DP 證明尚待完成。系統證據另涵蓋兩種實際證明後端、10 seeds 可重現性、1,991 維約束成本、50 客戶端／20 輪訓練與 10 seeds 的有界投毒穩健聚合。
+聯邦學習中 DP 更新的裁剪上界與加性噪聲關係，可透過 canonical quantized witness 與固定容差策略轉換為 ZKML 可審計條件；設定期綁定的客戶端秘密、commit-before-challenge 情境、Poseidon PRG、離散二項式取樣與上述關係已整合進實際 Halo2 證明，並在 3 客戶端 × 10 輪 × 5 seeds 上完成 150/150 份逐更新證明與磁碟重驗；對固定 $d=4$、$k=16$、10 輪 profile 的理想離散機制，replacement client-level 會計結果為 $\eps$ 約 28.84（$\delta=10^{-5}$），實際協定的完整 computational-DP 證明尚待完成。系統證據另涵蓋兩種實際證明後端、10 seeds 可重現性、1,991 維約束成本、50 客戶端／20 輪訓練與 10 seeds 的有界投毒穩健聚合。EZKL 約束線只能拒絕自身 witness 不一致的更新，不限制更新幅度。
 \end{quote}
 
-不可主張的包括：任意維度與輪數的統一 $\eps$；完整本地訓練正確性或任意投毒防禦；production 部署效能（1,000 份證明為外推）；以及除穩健聚合外的統計顯著性。Poseidon 版的 computational DP 也不可主張：若要成立，須先完成 PRF hybrid 與 transcript 模擬，且至少依賴 PRF、唯一情境、設定期承諾、commit-before-challenge 與秘密不洩漏等假設，$\delta$ 項並須加上 $(1+e^{\eps})\cdot\mathrm{Adv}_{\mathrm{PRF}}$。
+不可主張的包括：EZKL 約束線能限制被聚合更新的幅度，或能拒絕會調整私有噪聲的客戶端；任意維度與輪數的統一 $\eps$；完整本地訓練正確性或任意投毒防禦；production 部署效能（1,000 份證明為外推）；以及除穩健聚合外的統計顯著性。Poseidon 版的 computational DP 也不可主張：若要成立，須先完成 PRF hybrid 與 transcript 模擬，且至少依賴 PRF、唯一情境、設定期承諾、commit-before-challenge 與秘密不洩漏等假設，$\delta$ 項並須加上 $(1+e^{\eps})\cdot\mathrm{Adv}_{\mathrm{PRF}}$。
 
 \subsection{計畫成果自評：與提案的對照}
 \label{sec:selfeval}
@@ -655,7 +655,7 @@ CoverType MLP-32 & 1,991 & $1.658\pm0.431$ & $0.050\pm0.016$ & 12,282 & 17,922 &
 \appendix
 \section{主張—證據—檔案對照}
 \label{app:evidence}
-下表為正文每項主張對應的腳本與原始結果檔（路徑相對於 repository 根目錄的 \path{experiments/}）。數字若與二手摘要衝突，以原始檔及其產生腳本為準。本報告對應 repository 分支 \texttt{docs/nstc-final-report}：Heart Disease 的程式、原始結果與摘要列自 commit \texttt{bf2dd27} 起加入（審查抽查的 \texttt{4623db8} 尚無此資料集，其摘要檔只有 11 個資料集）；Titanic 去除 boat／body 的重跑、EZKL 公開 $\qnoisy$ 綁定與其拒絕測試、固定上界 pattern 會計，均自 2026-10-18 的審查修訂 commit \texttt{564c3f4} 起加入。伺服器以固定 verifying key 自行驗證、自選電路與驗證失敗旗標兩個拒絕案例，以及摘要與隱私段落的條件式改寫，為 2026-10-20 第二輪審查的修訂 commit \texttt{67ae961} 起加入。私有噪聲無約束的已知邊界案例、小數殘差拒絕案例與相關措辭限縮，為 2026-11-16 第三輪審查的修訂 commit \texttt{d0e18e4} 起加入。
+下表為正文每項主張對應的腳本與原始結果檔（路徑相對於 repository 根目錄的 \path{experiments/}）。數字若與二手摘要衝突，以原始檔及其產生腳本為準。本報告對應 repository 分支 \texttt{docs/nstc-final-report}：Heart Disease 的程式、原始結果與摘要列自 commit \texttt{bf2dd27} 起加入（審查抽查的 \texttt{4623db8} 尚無此資料集，其摘要檔只有 11 個資料集）；Titanic 去除 boat／body 的重跑、EZKL 公開 $\qnoisy$ 綁定與其拒絕測試、固定上界 pattern 會計，均自 2026-10-18 的審查修訂 commit \texttt{564c3f4} 起加入。伺服器以固定 verifying key 自行驗證、自選電路與驗證失敗旗標兩個拒絕案例，以及摘要與隱私段落的條件式改寫，自回應 2026-10-20 第二輪審查（\path{docs/nstc/delivery-review-2026-10-20.md}）的修訂 commit \texttt{67ae961}（commit 日期 2026-11-16）起加入。私有噪聲無約束的已知邊界案例、小數殘差拒絕案例與相關措辭限縮，自回應 2026-11-16 第三輪審查的修訂 commit \texttt{d0e18e4}（commit 日期 2026-11-16）起加入。
 
 \begin{small}
 \begin{longtable}{P{4.2cm}P{5.2cm}P{5.4cm}}
