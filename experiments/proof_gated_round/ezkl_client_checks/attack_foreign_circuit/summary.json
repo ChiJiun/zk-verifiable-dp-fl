@@ -1,0 +1,10 @@
+{
+  "sha256": {
+    "settings.json": "3583db47abf30d346344f596f8632797b9d5f27bdb06b285fef1d4c7909a0f82",
+    "network.ezkl": "ea7c0d528fefc50ef897b58d2f30622a18fb8376998977b258609e92669796ca",
+    "kzg.srs": "ebc0989442683fcb0185aeab47fb06fae8c33a7f5ec69af0b82dd5a930836b8a",
+    "vk.key": "a7e2bb9ab7a29e9b51c2114c629412c33fd83e9a2296917ea1de0597cdd1bff8"
+  },
+  "prove_seconds": 0.3354228000098374,
+  "client_reported_verified": true
+}

@@ -11,6 +11,8 @@
 
 ## NSTC 結案
 
+- [`nstc/final-report/final-report.tex`](nstc/final-report/final-report.tex)：結案送件正文（XeLaTeX；`final-report.pdf` 為編譯結果），依國科會成果報告格式整合全部實驗線。
+- [`nstc/experiment-design-audit.md`](nstc/experiment-design-audit.md)：結案前的提案對照、實驗設計與完整性審查，以及投稿前建議補做的實驗。
 - [`nstc/report-draft.md`](nstc/report-draft.md)：長版既有草稿；含歷史階段文字，送件前應依主張—證據表收斂。
 - [`nstc/experiment-summary.md`](nstc/experiment-summary.md)：實驗成果摘要。
 - [`nstc/submission-checklist.md`](nstc/submission-checklist.md)：圖表、限制與送件檢查。

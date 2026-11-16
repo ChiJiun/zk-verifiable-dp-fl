@@ -17,7 +17,7 @@
 | 摘要、背景與研究問題 | 為何需要稽核 client-side DP update；驗證者與受保護對象 | 2–3 |
 | 威脅模型與主張邊界 | actors、trust、adjacency、public/private inputs、out-of-scope | 2–3 |
 | 方法 | commit-before-challenge、Halo2 relation、sampler、proof gate | 3–4 |
-| 隱私分析 | 固定四維 exact accountant、假設、`epsilon <= 28.840669` | 2–3 |
+| 隱私分析 | 固定四維 exact accountant、假設、理想機制會計結果 `epsilon ≈ 28.84`；實際協定完整 DP 證明列為未完成 | 2–3 |
 | 實驗 | 逐更新 proofs、高維 scaling、utility、攻擊與 robust aggregation | 5–7 |
 | 討論與限制 | public-seed 負面結果、兩條實驗線、provenance、形式化缺口 | 2–3 |
 | 結論 | 僅重述被證據支持的貢獻 | 1 |
@@ -27,7 +27,7 @@
 | 問題 | 結果 | 來源 |
 |---|---|---|
 | Randomness 是否真的在 circuit 內 | Actual Halo2 tests 8/8 通過，包含 zero-noise、context swap 等拒絕案例 | `experiments/halo2_verifiable_randomness/` |
-| 是否有有限 privacy budget | 固定 `d=4, k=16`、10 rounds、replacement-client profile：`epsilon <= 28.840669` at `delta=1e-5` | `experiments/discrete_noise_accounting/results/accounting_results.json` |
+| 是否有有限 privacy budget | 固定 `d=4, k=16`、10 rounds、replacement-client profile 的理想離散機制：會計結果 `epsilon ≈ 28.84`（`28.840669`）at `delta=1e-5`；實際協定完整 transcript 的 DP 證明尚待完成 | `experiments/discrete_noise_accounting/results/accounting_results.json` |
 | 是否連到多輪 FL | 3 clients × 10 rounds × 5 seeds，150/150 proofs 通過並可從磁碟重驗模型鏈 | `experiments/actual_multiround_halo2/results_roundtrip/summary.json` |
 | 高維成本是否量測 | 385–1,991 維 actual EZKL constraint proofs；K=50、R=20 training stress test | `experiments/production_scaling/results/` |
 | 是否能阻止任意 poisoning | 不能；合法 bounded sign-flip 的 300/300 惡意更新通過 | `experiments/robust_aggregation/results/` |
@@ -60,7 +60,8 @@
 - [x] Privacy theorem 的 adjacency、profile、rounds、delta 與假設已列明。
 - [x] 大型資料、高維成本、non-IID、攻擊與 robust aggregation 結果均保留。
 - [x] AI 協助揭露文字已準備。
-- [ ] 將長版草稿依上述結構濃縮成唯一送件正文。
-- [ ] 補齊學校格式、圖表編號、中文摘要與參考文獻。
+- [x] 將長版草稿依上述結構濃縮成唯一送件正文（`final-report/final-report.tex`，2026-10-18）。
+- [ ] 填入封面的計畫編號、執行期間、系所與指導教授；依學校格式調整字型與頁邊。
+- [ ] 親自核對 `final-report/ref.bib` 的每一條文獻（見 `experiment-design-audit.md` F5）。
 - [ ] 由作者逐項重跑或抽驗主張—證據表。
 - [ ] 決定 repository 授權並加入 `LICENSE`。

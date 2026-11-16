@@ -82,3 +82,29 @@ schedule. It does not hide participation, prove record-level DP-SGD,
 full-training correctness, privacy against selective abort, or robustness to a
 poisoned but in-range update. Add/remove client adjacency would require a
 separate null-client encoding and accountant.
+
+## Scope of the number: accounting result, not a protocol theorem
+
+`epsilon_upper = 28.840669` (k=16, 40 compositions, delta=1e-5) is the accounting
+result for the *ideal* discrete mechanism above. The deployed protocol also emits
+commitments, challenges, proofs, timing and retry decisions; a DP proof for that
+complete transcript (commitment hiding, PRF-to-DP hybrid, zero-knowledge
+simulation, adaptive composition, selective abort) has not been completed. Summaries
+must therefore say "the accounting result for the ideal mechanism is epsilon of
+about 28.84; the full computational-DP proof of the actual protocol is open", not
+that the system achieves `epsilon <= 28.84`.
+
+## Higher dimension under the fixed bound
+
+The circuit constrains `q_clip in {-1,0,1}^d` with `sum(q_clip^2) <= 4`. If that bound
+is kept for `d > 4`, each admissible update has at most four non-zero coordinates,
+so two replacement-adjacent updates differ in `a <= 4` coordinates by 2 and `b`
+coordinates by 1 with `2a + b <= 8`, and agreeing coordinates contribute zero
+privacy loss. `fixed_norm_pattern_accounting.py` composes the scalar profiles for
+every feasible `(a, b)`; the worst case is `(4, 0)`, which is exactly the primary
+40-composition profile, so the bound is independent of `d >= 4` (10 rounds:
+28.840669; 20 rounds: 46.855616). The earlier "no finite epsilon in 385 or 1,991
+dimensions" statement assumed every coordinate may move by 2, i.e. a clip bound
+that grows with `d`; that assumption, not the dimension, is what pushes the delta
+floor above `1e-5`. Choosing an update envelope and clip bound that give both
+utility and a finite budget in high dimension remains open design work.
