@@ -12,7 +12,7 @@
 | 研究問題二：量化 scale 對 `(epsilon, delta)` 的靈敏度 | 分析 scale 變動是否造成隱私預算衰減 | 有 `scale=8/12/16` 的 accuracy／proving-time sweep、量化 rounding 導致 honest relation 0/9 成立、`4200 ppm` slack、field low-bit bias `5.9e-66`；**沒有** scale 對 epsilon 的系統曲線 | 部分達成 | 以「量化對可驗證性與正確性的影響」回答，並明列 scale→epsilon 曲線為未完成 |
 | 研究問題三：邊緣裝置（ARM）效能邊界 | 在 ARM 類邊緣裝置量測 proving time／RAM／proof size | 全部量測在 Intel x86（Windows）與 GitHub Ubuntu／Windows runner；有 prove/verify/RSS/proof size/payload，無 ARM | 部分達成 | 以 x86 CPU 數據代替，ARM 列為限制 |
 | 資料集 | MNIST（LeNet-5 CNN）、UCI Heart Disease（MLP） | UCI Adult 主線、12 個二元表格（含 2026-10-18 以既有 pipeline 補跑的 UCI Heart Disease Cleveland 303 筆，線性模型，3 seeds × FL/DP；保留率 0.830882，未達 90% 門檻，未調參）、Iris/Wine/Digits、Forest CoverType 581,012 筆、4 維合成資料；無 MNIST | 部分改道（Heart Disease 已補跑，但模型為線性而非 MLP） | 說明 CNN 在 ZK 內成本與審查人要求更多資料集；Heart Disease 結果如實列入表 3 與正文（`experiments/binary_dataset_repeatability/results/multi_dataset_summary.csv`） |
-| 證明本地訓練（梯度計算）正確性 | 對「梯度計算」與「加噪過程」生成證明 | 只證明 clipping bound、additive relation、hidden randomness；bounded sign-flip 300/300 通過 gate | 未達成，明示 out of scope | 必須寫入限制；不能沿用提案的「證明本地訓練正確」措辭 |
+| 證明本地訓練（梯度計算）正確性 | 對「梯度計算」與「加噪過程」生成證明 | 只證明 clipping bound、additive relation、hidden randomness；bounded sign-flip 300/300 通過 gate（政策模擬，未產生實際證明） | 未達成，明示 out of scope | 必須寫入限制；不能沿用提案的「證明本地訓練正確」措辭 |
 | 效能預期 | Heart Disease MLP 證明 `<10 s`、`<1 GB` | Halo2 4 維 150 份逐更新 proof 平均 1.952 s、最大 3.994 s（60 份 > 2 s）；EZKL 1,991 維平均 1.658 s、最大 1.858 s；peak RSS `<480 MiB` | 低於 10 s 門檻，但模型不同；「所有單一 proof < 2 s」與原始 `run.json` 不符，已更正 | 如實標明模型與資料不同，並以原始 `seed_*/run.json` 的 `prove_seconds` 為準 |
 | 硬體 | NVIDIA GPU 工作站 | 純 CPU | 改道 | 註明 |
 | 框架 | EZKL 為主 | EZKL（KZG）+ Zcash Halo2（IPA）兩個 backend | 超出提案 | 說明兩者 circuit 不同，不做 head-to-head |

@@ -131,7 +131,7 @@ MLP 實際用於 FL training，EZKL 則只證明相同參數數量的完整 upda
 
 robust aggregation 在 CoverType 50,000/20,000、K=10、R=5、Dirichlet α=0.5、20% attackers、10 seeds 下，比較 uniform mean、coordinate median 與 20% coordinate trimmed mean。攻擊者將合法 update 反向並放大至完整 clipping bound，再加入合法 noise；所以 clipping、additive relation、context 與 replay checks 全部成立。
 
-3,000/3,000 decisions 被 gate 接受，其中 malicious updates 為 300/300。這直接確認：即使 randomness circuit 正確，update-level VDP proof 仍不等於 local-training provenance。
+3,000/3,000 decisions 被 gate 接受，其中 malicious updates 為 300/300（policy simulation：`proof_verified` 寫死為 True，未產生實際證明）。這直接確認：即使 randomness circuit 正確，update-level VDP proof 仍不等於 local-training provenance。
 
 | Aggregator | Clean accuracy | Attack accuracy | Paired change | Attack/clean retention |
 |---|---:|---:|---:|---:|

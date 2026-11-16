@@ -99,3 +99,14 @@ describe the working-copy bytes at execution time; Git HEAD/dirty state is also
 recorded. The checked-in proof/circuit code corresponds to commit `f2ca1cf`;
 the run began before that source commit, so source hashes are the run's primary
 code provenance, not the base HEAD value alone.
+
+Known provenance gap (found in the 2026-11-16 review): of the five source hashes in
+`results_roundtrip/config.json`, `src/main.rs`, `src/federated.rs`, `Cargo.lock` and
+`run_experiment.py` match the checked-in files, but `Cargo.toml` does not.
+`hardware_manifest.json` records `Cargo.toml` as modified and uncommitted when the run
+started (`git_status_at_start`). The only committed change to `Cargo.toml` between
+`dfa4428` and `f2ca1cf` is enabling serde_json `float_roundtrip`, which this run
+requires; neither committed version (LF or CRLF) reproduces the recorded hash, so the
+exact bytes used at run time cannot be recovered. Because `Cargo.lock` matches, the
+resolved dependency versions are the same, but the feature flags and release-profile
+settings used at run time cannot be confirmed from the recorded hashes. The recorded hashes are left unchanged.
