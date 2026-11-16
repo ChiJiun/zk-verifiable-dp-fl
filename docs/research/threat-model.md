@@ -32,7 +32,7 @@
 | 保留合法 proof、替換提交聚合的向量 | Halo2 線 `q_noisy` 為 public input；EZKL 線自 2026-10-18 起把 `q_noisy` 列為 public output，server 只聚合證明中公開的向量（`proof_gated_round/gate.py`） | 綁定的是向量與約束，不是向量的來源 |
 | Public seed、zero noise、context swap | Halo2 hidden randomness 與 context binding | 完整 transcript 的 computational DP 仍依賴 PRF、ZK 與 composition 假設 |
 | Replay／challenge grinding | commit-before-challenge、single-use challenge、server replay state | selective abort／dropout leakage 尚未形式化 |
-| 合法範圍內 bounded poisoning | 實測 median／trimmed mean 緩解 | 300/300 惡意更新仍通過 gate；不是任意 Byzantine 防禦 |
+| 合法範圍內 bounded poisoning | 實測 median／trimmed mean 緩解 | 300/300 惡意更新仍通過 gate（政策模擬，未產生實際證明）；不是任意 Byzantine 防禦 |
 | Server 與 client 勾結 | 未建立完整模型 | collusion threshold、分散式 randomness、malicious verifier security 待證明 |
 | 惡意或自適應 server | 只以 protocol ordering 與 ZK 隱藏 witness 限制 | adaptive composition、challenge bias、timing／side channels 待證明 |
 

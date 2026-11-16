@@ -14,7 +14,7 @@
 | EZKL 證明閘的公開陳述含 `q_noisy`；伺服器只聚合證明中公開的向量，替換提交向量會被拒絕（`experiments/proof_gated_round/test_gate.py`） | EZKL 線具有隱藏 randomness 或有限 epsilon；EZKL 閘限制更新幅度（私有 `q_noise` 無約束，調整噪聲即可讓任意更新通過） |
 | 高維 EZKL constraint cost、K=50／R=20 scaling 與 bounded-poisoning robust aggregation 已量測 | Production 部署效能；1,000-proof workload 仍是明示外推 |
 
-最重要的負面結果也保留：public seed 的舊機制為 `epsilon = infinity`；合法 clipping 範圍內的 300/300 惡意更新會通過 proof gate。詳見[威脅模型](docs/research/threat-model.md)與[主張—證據對照](docs/research/claim-evidence-map.md)。
+最重要的負面結果也保留：public seed 的舊機制為 `epsilon = infinity`；合法 clipping 範圍內的 300/300 惡意更新會通過 proof gate（政策模擬，未產生實際證明；在 EZKL 線上，調整不受約束的私有噪聲甚至可讓超出範圍的更新通過）。詳見[威脅模型](docs/research/threat-model.md)與[主張—證據對照](docs/research/claim-evidence-map.md)。
 
 ## Repository 結構
 
