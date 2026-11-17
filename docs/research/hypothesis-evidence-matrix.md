@@ -14,7 +14,7 @@
 | H8 | Replay／context／zero-noise 缺口可被轉成 actual ZK relation | Secret/update commitments、context-bound Poseidon PRG、canonical sampler 的 actual Halo2 circuit，8/8 tests | 支持固定 profile | Server freshness／replay cache 仍是 host state；Poseidon PRF security 為明示假設 |
 | H9 | Exact 離散 sampler 可取得有限 client-level epsilon | Exact PLD accountant：`d=4, k=16`、10 rounds、`delta=1e-5` 時 `epsilon <= 28.840669` | 支持 replacement-client fixed-participation profile | 實際 PRG 為 conditional computational DP；不外推至高維、add/remove 或 record-level |
 | H10 | 架構可擴至較複雜模型、50 clients 與20 rounds | production-oriented scaling：9/9 EZKL proofs、40 FL trajectories、385–1,991 維、最大 1,000 updates | 支持 production-oriented stress test | Local training 不在 circuit；全量 proof latency為實測單證明外推 |
-| H11 | Robust aggregation 可緩解合法範圍內的 bounded poisoning | robust aggregation：10 seeds、60 trajectories、3,000 decisions；median/trimmed mean retention gain 0.1988/0.1541，exact p=0.001953 | 支持所測20%攻擊的顯著緩解 | 300/300 malicious updates仍通過 gate；未完全恢復 utility或證明任意 Byzantine robustness |
+| H11 | Robust aggregation 可緩解合法範圍內的 bounded poisoning | robust aggregation：10 seeds、60 trajectories、3,000 decisions；median/trimmed mean retention gain 0.1988/0.1541，exact p=0.001953 | 支持所測20%攻擊的顯著緩解 | 300/300 malicious updates仍通過 gate（政策模擬，未產生實際證明）；未完全恢復 utility或證明任意 Byzantine robustness |
 
 ## 大型與 non-IID 壓力測試
 

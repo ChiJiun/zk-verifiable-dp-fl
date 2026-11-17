@@ -30,7 +30,7 @@
 | 是否有有限 privacy budget | 固定 `d=4, k=16`、10 rounds、replacement-client profile 的理想離散機制：會計結果 `epsilon ≈ 28.84`（`28.840669`）at `delta=1e-5`；實際協定完整 transcript 的 DP 證明尚待完成 | `experiments/discrete_noise_accounting/results/accounting_results.json` |
 | 是否連到多輪 FL | 3 clients × 10 rounds × 5 seeds，150/150 proofs 通過並可從磁碟重驗模型鏈 | `experiments/actual_multiround_halo2/results_roundtrip/summary.json` |
 | 高維成本是否量測 | 385–1,991 維 actual EZKL constraint proofs；K=50、R=20 training stress test | `experiments/production_scaling/results/` |
-| 是否能阻止任意 poisoning | 不能；合法 bounded sign-flip 的 300/300 惡意更新通過 | `experiments/robust_aggregation/results/` |
+| 是否能阻止任意 poisoning | 不能；合法 bounded sign-flip 的 300/300 惡意更新通過（政策模擬，未產生實際證明） | `experiments/robust_aggregation/results/` |
 | 結果是否完整 | 核心矩陣完整性、paired effects、環境與 SHA-256 manifest | `experiments/experimental_rigor_audit/results/` |
 
 完整路由見 [`../research/claim-evidence-map.md`](../research/claim-evidence-map.md)。
@@ -51,7 +51,7 @@
 3. `epsilon`–accuracy 曲線；目前若沒有 `epsilon=1/4/8` 的 matched baseline，圖說必須標為缺口。
 4. 逐更新多輪 proof 數量、prove/verify time 與模型鏈重驗。
 5. 385–1,991 維 constraint cost scaling，明示「無此維度的有限 epsilon」。
-6. Bounded poisoning 對 mean／median／trimmed mean 的比較與 300/300 acceptance。
+6. Bounded poisoning 對 mean／median／trimmed mean 的比較與 300/300 acceptance（政策模擬，未產生實際證明）。
 
 ## 送件前檢查
 

@@ -22,7 +22,7 @@
 | 未明確定義 baseline 與 evaluation protocol | 已補強 | 明確定義 S0、S1、S2；paired modes 共用 split、partition、初始化與 shuffle。定義 accuracy、retention、CI、label TV、acceptance、proof cost、RSS 與 payload。multi-round threat matrix 加入 5 attacks × 3 policies；experimental-rigor audit 再驗證完整矩陣、paired effects、exact permutation、Holm correction、環境版本與 SHA-256。 | n=3/n=5 的 exact test resolution 不足以支持「統計顯著」；結果定位為描述性、effect-size 與可行性證據。 |
 | DP privacy budget 未被正式驗證 | 已完成 exact sampler accountant | discrete-noise accounting 對centered-binomial finite-support mechanism做conservative PLD composition；固定d=4、k=16、10 rounds、replacement-client adjacency得到epsilon≤28.840669 at delta=1e-5。 | Actual Poseidon為PRF assumption下的computational DP；不外推至385–1,991維、add/remove participation或record-level DP。 |
 | Replay/context/randomness 缺口只有未來工作 | 已進actual circuit | context-bound randomness protocol state machine加上the Halo2 verifiable-randomness circuit Halo2 secret/update commitments、context-bound Poseidon PRG、canonical discrete sampler；tamper/context swap/zero-noise tests皆拒絕。 | Single-use challenge/replay cache仍需server state；selective abort、collusion與PRF security仍需更完整分析。 |
-| 合法bounded poisoning仍可通過gate | 已加入robust aggregation | robust aggregation以10 seeds、20% attackers完成60 trajectories/3,000 decisions；median/trimmed mean相對mean retention gain為0.1988/0.1541，exact p=0.001953。 | 300/300 malicious updates仍通過gate，robust方法只顯著緩解所測攻擊，未取代local-training proof。 |
+| 合法bounded poisoning仍可通過gate | 已加入robust aggregation | robust aggregation以10 seeds、20% attackers完成60 trajectories/3,000 decisions；median/trimmed mean相對mean retention gain為0.1988/0.1541，exact p=0.001953。 | 300/300 malicious updates仍通過gate（政策模擬，未產生實際證明），robust方法只顯著緩解所測攻擊，未取代local-training proof。 |
 
 ## 研究貢獻的適當表述
 
