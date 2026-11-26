@@ -80,32 +80,45 @@
 \begin{document}
 \ifreportcover
 \hypersetup{pageanchor=false}
+\newgeometry{left=1.35cm,right=1.35cm,top=1.55cm,bottom=2.5cm}
 \begin{titlepage}
 \centering
-\vspace*{2cm}
-{\Large 國家科學及技術委員會\par}
-\vspace{0.4em}
-{\Large 大專學生研究計畫研究成果報告\par}
+\setlength{\parindent}{0pt}
+{\fontsize{21}{28}\selectfont\bfseries 國家科學及技術委員會補助\par}
+\vspace{0.38cm}
+{\fontsize{21}{28}\selectfont\bfseries 大專學生研究計畫研究成果報告\par}
+\vspace{0.95cm}
+
+\setlength{\fboxrule}{1.7pt}
+\setlength{\fboxsep}{0pt}
+\fbox{%
+  \begin{minipage}[c][3.15cm][c]{\dimexpr\linewidth-2\fboxrule\relax}
+  \fontsize{14}{20}\selectfont
+  \noindent\hspace*{1cm}%
+  \begin{tabular}[c]{@{}c@{}}計\quad 畫\\[0.45cm]名\quad 稱\end{tabular}%
+  \hspace{0.22cm}：\hspace{0.4cm}%
+  \begin{minipage}[c]{13.1cm}
+  \raggedright
+  基於零知識機器學習（ZKML）之可驗證差分隱私架構：\\
+  以聯邦學習為例
+  \end{minipage}
+  \end{minipage}}\par
+
 \vspace{2cm}
-{\LARGE\bfseries 基於零知識機器學習（ZKML）之\\[0.4em]
-可驗證差分隱私架構：以聯邦學習為例\par}
-\vspace{0.9em}
-{\large Verifiable Differential Privacy for Federated Learning\\
-with Zero-Knowledge Machine Learning\par}
-\vspace{2.25cm}
-{\large
-\begin{tabular}{@{}rl@{}}
-計畫編號： & 115-2813-C-008-117-E \\[0.65em]
-執行期間： & 115 年 7 月 1 日至 116 年 2 月 28 日 \\[0.65em]
-執行機構： & 國立中央大學 \\[0.65em]
-系所：     & 資訊工程學系 \\[0.65em]
-指導教授： & 張嘉惠教授 \\[0.65em]
-研究學生： & 翁祺鈞 \\
-\end{tabular}\par}
-\vfill
-{\large 中華民國 115 年 11 月\par}
-\vspace*{1cm}
+\begin{flushleft}
+\fontsize{14}{20}\selectfont
+\renewcommand{\arraystretch}{1.12}
+\newcommand{\coverlabel}[1]{\makebox[3.7cm][s]{#1}}
+\begin{tabular}{@{}l@{\hspace{0.2cm}：\hspace{0.2cm}}l@{}}
+\coverlabel{報\hfill 告\hfill 類\hfill 別} & 成果報告 \\
+\coverlabel{執\hfill 行\hfill 計\hfill 畫\hfill 學\hfill 生} & 翁祺鈞 \\
+\coverlabel{學\hfill 生\hfill 計\hfill 畫\hfill 編\hfill 號} & NSTC 115-2813-C-008-117-E \\
+\coverlabel{研\hfill 究\hfill 期\hfill 間} & 115年07月01日至116年02月28日止，計8個月 \\
+\coverlabel{指\hfill 導\hfill 教\hfill 授} & 張嘉惠 \\
+\end{tabular}
+\end{flushleft}
 \end{titlepage}
+\restoregeometry
 \hypersetup{pageanchor=true}
 \fi
 \pagenumbering{Roman}
