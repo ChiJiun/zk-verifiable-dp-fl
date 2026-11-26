@@ -1,6 +1,6 @@
 # NSTC 大專生研究計畫結案整理清單
 
-本專題的實驗量已足以完成結案。送件重點不是再增加相似實驗，而是把最新 Halo2 結果、舊 public-seed 負面結果與高維 scaling 清楚分層，濃縮成一份 15–25 頁正文。
+正式送件正文為 [LaTeX 主檔](final-report/final-report.tex)。報告分開呈現四維 Halo2 原型的證據、公開種子的負面結果，以及高維約束成本。
 
 ## 建議題目定位
 
@@ -10,17 +10,15 @@
 
 > 本研究把固定 profile 的秘密隨機性、離散噪聲取樣、clipping 與 additive relation 整合進 actual Halo2 proof，並展示 proof-gated 多輪聚合；同時以高維壓力測試與攻擊實驗界定此保證不能外推成完整 local-training correctness、任意 poisoning defense 或 production-scale DP-FL。
 
-## 報告章節與建議頁數
+## 國科會格式與篇幅
 
-| 章節 | 內容 | 建議頁數 |
-|---|---|---:|
-| 摘要、背景與研究問題 | 為何需要稽核 client-side DP update；驗證者與受保護對象 | 2–3 |
-| 威脅模型與主張邊界 | actors、trust、adjacency、public/private inputs、out-of-scope | 2–3 |
-| 方法 | commit-before-challenge、Halo2 relation、sampler、proof gate | 3–4 |
-| 隱私分析 | 固定四維 exact accountant、假設、理想機制會計結果 `epsilon ≈ 28.84`；實際協定完整 DP 證明列為未完成 | 2–3 |
-| 實驗 | 逐更新 proofs、高維 scaling、utility、攻擊與 robust aggregation | 5–7 |
-| 討論與限制 | public-seed 負面結果、兩條實驗線、provenance、形式化缺口 | 2–3 |
-| 結論 | 僅重述被證據支持的貢獻 | 1 |
+依[大專學生研究計畫 FAQ](https://www.nstc.gov.tw/folksonomy/detail/03a84ac2-b906-472d-a73f-3d86f3844024?l=ch)，封面由系統產生，其餘格式參考[國科會 114 年 10 月修正版](https://rd-r.ntust.edu.tw/var/file/55/1055/img/909083360.pdf#page=3)。
+
+- 審閱 PDF 保留封面。若上傳系統會另產生封面，可將主檔的 `\reportcovertrue` 改為 `\reportcoverfalse` 後輸出正文。
+- 完整報告不得少於 10 頁，格式未列上限；延後公開時提交的精簡報告以 3–10 頁為原則。
+- 順序：目錄、中英文摘要及關鍵詞、前言、研究目的、文獻探討、研究方法、結果與討論、結論與建議、參考文獻。正文交代執行困難；必要的證據索引可放附錄。
+- A4、單行行距、中文標楷體、英文 Times New Roman，字體以 12 點為主；目錄與摘要用羅馬數字，正文至附錄用阿拉伯數字。
+- 舊版成果彙整表已刪除。若系統有成果貢獻欄，在系統填寫；可推廣的研發成果等條件性表單交由學校確認。
 
 ## 正文必放的證據
 
@@ -60,8 +58,8 @@
 - [x] Privacy theorem 的 adjacency、profile、rounds、delta 與假設已列明。
 - [x] 大型資料、高維成本、non-IID、攻擊與 robust aggregation 結果均保留。
 - [x] AI 協助揭露文字已準備。
-- [x] 將長版草稿依上述結構濃縮成唯一送件正文（`final-report/final-report.tex`，2026-10-18）。
-- [ ] 填入封面的計畫編號、執行期間、系所與指導教授；依學校格式調整字型與頁邊。
+- [x] 將報告整理成唯一的送件正文（`final-report/final-report.tex`）。
+- [ ] 在送件系統核對自動產生的封面欄位、上傳檔案與校內要求，並請指導教授確認。
 - [ ] 親自核對 `final-report/ref.bib` 的每一條文獻（見 `experiment-design-audit.md` F5）。
 - [ ] 由作者逐項重跑或抽驗主張—證據表。
 - [ ] 決定 repository 授權並加入 `LICENSE`。
