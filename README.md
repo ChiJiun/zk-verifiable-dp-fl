@@ -1,45 +1,45 @@
 # zk-verifiable-dp-fl
 
-可驗證差分隱私聯邦學習（VDP-FL）研究原型：client 以零知識證明展示 update 經過 clipping，並使用秘密且綁定情境的 randomness 加入離散噪聲；server 只聚合 proof、context 與 replay policy 都通過的更新。
+可驗證差分隱私聯邦學習（VDP-FL）研究原型。客戶端以零知識證明說明自己的更新確實經過裁剪與加噪；伺服器驗證證明、情境與重播狀態後，只聚合通過的更新。
 
 [![Reproducibility matrix](https://github.com/ChiJiun/zk-verifiable-dp-fl/actions/workflows/reproducibility-matrix.yml/badge.svg)](https://github.com/ChiJiun/zk-verifiable-dp-fl/actions/workflows/reproducibility-matrix.yml)
 
-## 目前能主張什麼
+完整說明見國科會結案報告：[`docs/nstc/final-report/final-report.pdf`](docs/nstc/final-report/final-report.pdf)。
 
-| 有證據支持 | 不能由目前結果推出 |
-|---|---|
-| Actual Halo2 circuit 已整合 setup-bound secret、commit-before-challenge context、Poseidon PRG、canonical centered-binomial sampler、clipping 與 additive-noise relation | 任意維度、任意 participation／rounds 的統一 DP 保證 |
-| 固定 `d=4, k=16`、10 rounds、replacement-client profile 的**理想離散機制**，exact PLD 會計結果為 `epsilon ≈ 28.84` at `delta=1e-5`；若維持 `sum(q^2) <= 4` 的固定上界，此上界與維度無關 | 實際協定完整 transcript 的 computational-DP 證明（尚待完成）；385–1,991 維 EZKL 實驗也具有相同 epsilon；`epsilon=28.84` 已具強實務隱私 |
-| 3 clients × 10 rounds × 5 seeds 的 150 份逐更新 proof 通過（平均 1.952 s、最大 3.994 s），模型鏈可從磁碟重驗 | 更新確實由指定資料與 optimizer 產生，或能阻止任意 poisoning |
-| EZKL 證明閘的公開陳述含 `q_noisy`；伺服器只聚合證明中公開的向量，替換提交向量會被拒絕（`experiments/proof_gated_round/test_gate.py`） | EZKL 線具有隱藏 randomness 或有限 epsilon；EZKL 閘限制更新幅度（私有 `q_noise` 無約束，調整噪聲即可讓任意更新通過） |
-| 高維 EZKL constraint cost、K=50／R=20 scaling 與 bounded-poisoning robust aggregation 已量測 | Production 部署效能；1,000-proof workload 仍是明示外推 |
+## 兩條證明線
 
-最重要的負面結果也保留：public seed 的舊機制為 `epsilon = infinity`；合法 clipping 範圍內的 300/300 惡意更新會通過 proof gate（政策模擬，未產生實際證明；在 EZKL 線上，調整不受約束的私有噪聲甚至可讓超出範圍的更新通過）。詳見[威脅模型](docs/research/threat-model.md)與[主張—證據對照](docs/research/claim-evidence-map.md)。
+| | EZKL 約束線 | Halo2 秘密隨機性線 |
+|---|---|---|
+| 證明內容 | 裁剪上界與加性關係 `q_noisy = q_clipped + q_noise` | 秘密承諾、commit-before-challenge 情境、Poseidon PRG、centered-binomial 取樣（k=16）、裁剪與加性關係 |
+| 規模 | 15 至 1,991 維完整更新 | d=4，合成資料 |
+| 噪聲 | 公開種子；`q_noise` 是不受約束的私有 witness | 由設定期秘密與本輪情境在電路內產生 |
+| 能做到 | 綁定被聚合的向量、拒絕 witness 自身不一致的客戶端 | 限制更新幅度；理想機制 ε ≈ 28.84（δ=1e-5） |
+| 做不到 | 限制更新幅度；驗證者視角 ε = ∞ | 高維效用；完整協定的 computational-DP 證明 |
 
-## Repository 結構
+## 主要結果
 
-```text
-.
-├── experiments/                 # 35 個研究單元，依索引閱讀
-├── docs/
-│   ├── nstc/                    # 結案草稿、摘要與送件 checklist
-│   ├── publication/             # 投稿強化報告、roadmap、舊稿來源
-│   ├── research/                # 威脅模型、架構、主張—證據對照
-│   ├── governance/              # AI 協助等研究治理說明
-│   └── archive/                 # 歷史計畫與進度文件
-├── scripts/check_repository.py  # CI repository hygiene 檢查
-├── Dockerfile                   # 核心 accountant + Halo2 重現環境
-└── requirements*.txt
-```
+| 結果 | 證據類型 | 位置 |
+|---|---|---|
+| 150/150 份逐更新 Halo2 證明通過、磁碟重驗 150/150、7 類負面探測 1,050/1,050 被拒（3 客戶端 × 10 輪 × 5 seeds） | 實際證明 | `experiments/actual_multiround_halo2/` |
+| 固定 d=4、k=16、10 輪的理想離散機制 ε ≤ 28.84 | 隱私會計 | `experiments/discrete_noise_accounting/` |
+| EZKL 證明閘：替換提交向量、自選電路、驗證失敗旗標、小數殘差都被拒；把篡改移進私有噪聲的更新（每座標 ±10⁶）會被接受，是已知邊界 | 實際證明 | `experiments/proof_gated_round/` |
+| 重播與零噪聲可通過只驗約束的閘；合法範圍內的符號反轉投毒在所有政策下都通過 | 政策模擬 | `experiments/multiround_threat_matrix/`、`experiments/robust_aggregation/` |
+| 12 個二元資料集中 9 個在預設 DP 參數下保留 90% 以上 FL 準確率 | 效用實驗 | `experiments/binary_dataset_repeatability/` |
 
-- [實驗索引](experiments/README.md)
-- [文件索引](docs/README.md)
-- [NSTC 長版草稿](docs/nstc/report-draft.md)
-- [最新投稿強化報告](docs/publication/strengthening-report.md)
+每項主張對應的腳本與結果檔，見[主張—證據對照](docs/research/claim-evidence-map.md)與報告附錄 A。
 
-## 核心重現
+## 目錄
 
-需求：Python 3.12、Rust stable。Python 3.13 不是 CI 的驗證版本。
+- `experiments/`：35 個研究單元，閱讀順序見[實驗索引](experiments/README.md)。
+- `docs/nstc/final-report/`：結案報告的 LaTeX 原始檔與 PDF。
+- `docs/research/`：威脅模型與主張—證據對照。
+- `scripts/check_repository.py`：CI 使用的 repository 檢查。
+
+## 重現
+
+需求：Python 3.12、Rust stable（CI 不驗證 Python 3.13）。
+
+### 核心測試（不需要 PyTorch 或 EZKL）
 
 ```powershell
 python -m venv .venv
@@ -53,19 +53,43 @@ python -m unittest discover -s experiments/actual_multiround_halo2 -p "test*.py"
 python -m unittest discover -s experiments/proof_gated_round -p "test*.py" -v
 ```
 
-完整 ML／EZKL 實驗另安裝 `requirements.txt`，再依各實驗 README 執行。UCI Adult 原始資料、衍生 NumPy arrays、`*.key` 與 `*.srs` 不再版控；相關 pipeline 會重新下載或產生它們。
+`proof_gated_round` 的 `ServerVerificationTests` 需要可執行 EZKL 的直譯器與本機產生的伺服器金鑰，沒有時會 skip。
 
-Docker 只包核心 privacy accountant 與 Halo2 circuit，以避免把完整 PyTorch／EZKL toolchain 誤稱為已驗證容器：
+### 完整 ML／EZKL 實驗
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+再依各實驗目錄的 README 執行。例如 EZKL 證明閘單輪：
+
+```powershell
+python experiments/proof_gated_round/run_actual_proof_gated_round.py --python <已安裝 torch 與 ezkl 的直譯器>
+```
+
+UCI Adult 原始資料、衍生的 NumPy arrays、`*.key` 與 `*.srs` 不納入版控，相關 pipeline 會重新下載或產生。
+
+### Docker
+
+容器只包含 privacy accountant 與 Halo2 電路，不包含 PyTorch／EZKL：
 
 ```powershell
 docker build -t zk-verifiable-dp-fl-core .
 docker run --rm zk-verifiable-dp-fl-core
 ```
 
-## 研究與發布治理
+### 編譯結案報告
 
-- [AI 協助揭露](docs/governance/ai-assistance.md)已提供可直接採用的文字與口試自查。
-- Repository 尚未選定開源授權；在加入正式 `LICENSE` 前，請勿假設程式或資料可被再散布。這項法律選擇需由作者決定。
-- 目前最合適定位是 NSTC 結案成果與範圍清楚的 workshop／arXiv systems-security prototype；full paper 仍需形式化 soundness／zero-knowledge／adaptive composition、selective abort／collusion、高維 hidden randomness 與真實 client dataset。
+```powershell
+cd docs/nstc/final-report
+xelatex --disable-installer -interaction=nonstopmode final-report.tex
+bibtex final-report
+xelatex --disable-installer -interaction=nonstopmode final-report.tex
+xelatex --disable-installer -interaction=nonstopmode final-report.tex
+```
 
-主要技術依據：[Zcash Halo2](https://github.com/zcash/halo2)、[EZKL](https://github.com/zkonduit/ezkl)、[Koskela et al. exact PLD accounting](https://proceedings.mlr.press/v130/koskela21a.html)、[cpSGD binomial mechanism](https://arxiv.org/abs/1805.10559)。
+中文使用標楷體（DFKai-SB）；沒有這個字型的環境會改用 Noto Serif TC。
+
+## 授權
+
+尚未選定開源授權；加入 `LICENSE` 前，請勿假設程式或資料可再散布。
